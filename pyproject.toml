@@ -1,0 +1,45 @@
+[project]
+name = "code-reviewer"
+version = "0.0.0"
+description = "CodeReviewer.ai — RAG-powered pull-request reviewer that learns a codebase"
+requires-python = ">=3.12"
+dependencies = [
+    "codereviewer-schemas",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["libs/*"]
+
+[tool.uv.sources]
+codereviewer-schemas = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "mypy>=1.13",
+    "ruff>=0.8",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["codereviewer"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "libs/schemas/src"
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["libs"]
