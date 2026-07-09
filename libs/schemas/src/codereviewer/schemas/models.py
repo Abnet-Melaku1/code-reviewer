@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated, Self
+from typing import Annotated, Self, assert_never
 
 from pydantic import (
     BaseModel,
@@ -11,16 +11,27 @@ from pydantic import (
 )
 
 from codereviewer.schemas.enums import (
+    CitationKind,
     ConventionSource,
+    DiffSide,
     IndexStatus,
     Language,
     PullRequestState,
+    ReviewStatus,
+    Severity,
     SymbolKind,
 )
 
 # String fields holding verbatim text (source code, patches) opt out of the model-level
 # whitespace stripping that StrippedStrModel applies to identifier fields.
 VerbatimStr = Annotated[str, StringConstraints(strip_whitespace=False)]
+
+
+def _blank_to_none(value: str | None) -> str | None:
+    """Normalize an optional string: a blank/whitespace-only value carries no information."""
+    if value is not None and not value.strip():
+        return None
+    return value
 
 
 class DomainModel(BaseModel):
@@ -130,7 +141,98 @@ class Convention(StrippedStrModel):
     @field_validator("example_code")
     @classmethod
     def _blank_example_is_absent(cls, value: str | None) -> str | None:
-        # A blank snippet carries no information; treat it as no example rather than "".
-        if value is not None and not value.strip():
-            return None
-        return value
+        return _blank_to_none(value)
+
+
+class Citation(StrippedStrModel):
+    """Evidence grounding a review comment.
+
+    Exactly one target is populated, and it must match ``kind``: ``code_chunk_id`` for a
+    ``code_chunk``, ``convention_id`` for a ``convention``, ``diff_ref`` for a ``diff_hunk``.
+    The parent ``review_comment_id`` link is a persistence concern; the target reference is
+    domain payload (the UI shows what grounded each comment).
+    """
+
+    kind: CitationKind
+    code_chunk_id: int | None = Field(default=None, gt=0)
+    convention_id: int | None = Field(default=None, gt=0)
+    diff_ref: str | None = None
+
+    @field_validator("diff_ref")
+    @classmethod
+    def _blank_diff_ref_is_absent(cls, value: str | None) -> str | None:
+        return _blank_to_none(value)
+
+    @model_validator(mode="after")
+    def _exactly_the_target_for_kind(self) -> Self:
+        # match (not a dict) so a newly added CitationKind fails mypy here until it is
+        # handled — keeping the exactly-one-target invariant enforced at type-check time.
+        match self.kind:
+            case CitationKind.code_chunk:
+                required: object = self.code_chunk_id
+                extras = {"convention_id": self.convention_id, "diff_ref": self.diff_ref}
+            case CitationKind.convention:
+                required = self.convention_id
+                extras = {"code_chunk_id": self.code_chunk_id, "diff_ref": self.diff_ref}
+            case CitationKind.diff_hunk:
+                required = self.diff_ref
+                extras = {"code_chunk_id": self.code_chunk_id, "convention_id": self.convention_id}
+            case _ as unreachable:
+                assert_never(unreachable)
+        if required is None:
+            raise ValueError(f"citation of kind {self.kind.value} requires its matching target")
+        set_extras = [name for name, value in extras.items() if value is not None]
+        if set_extras:
+            raise ValueError(
+                f"citation of kind {self.kind.value} must not also set: {', '.join(set_extras)}"
+            )
+        return self
+
+
+class ReviewComment(StrippedStrModel):
+    """One margin note. Carries at least one citation — a comment with no grounding is a bug.
+
+    Its ``(file_path, line, side)`` must exist in the actual diff; that is validated against
+    the diff in the review pipeline, not here. ``suggested_patch`` is a verbatim diff.
+    """
+
+    file_path: str = Field(min_length=1)
+    line: int = Field(ge=1)
+    side: DiffSide
+    severity: Severity
+    body: str = Field(min_length=1)
+    suggested_patch: VerbatimStr | None = None
+    posted_to_github: bool = False
+    github_comment_id: int | None = Field(default=None, gt=0)
+    citations: list[Citation] = Field(min_length=1)
+
+    @field_validator("suggested_patch")
+    @classmethod
+    def _blank_patch_is_absent(cls, value: str | None) -> str | None:
+        return _blank_to_none(value)
+
+
+class Review(StrippedStrModel):
+    """One review run on a pull request.
+
+    ``(pull_request_id, head_sha)`` is the idempotency key (the FK is a persistence concern).
+    Counts and cost/latency metrics default to zero for a freshly queued run and are filled
+    in as it progresses; ``model`` records the resolved model ID for audit.
+    """
+
+    head_sha: str = Field(min_length=1)
+    status: ReviewStatus = ReviewStatus.queued
+    summary: str | None = None
+    must_fix: int = Field(default=0, ge=0)
+    suggestions: int = Field(default=0, ge=0)
+    nits: int = Field(default=0, ge=0)
+    tokens_in: int = Field(default=0, ge=0)
+    tokens_out: int = Field(default=0, ge=0)
+    cost_cents: int = Field(default=0, ge=0)
+    latency_ms: int = Field(default=0, ge=0)
+    model: str = Field(min_length=1)
+
+    @field_validator("summary")
+    @classmethod
+    def _blank_summary_is_absent(cls, value: str | None) -> str | None:
+        return _blank_to_none(value)

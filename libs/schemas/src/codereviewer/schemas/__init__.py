@@ -10,15 +10,19 @@ from codereviewer.schemas.enums import (
     SymbolKind,
 )
 from codereviewer.schemas.models import (
+    Citation,
     CodeChunk,
     Convention,
     DomainModel,
     IndexedFile,
     PullRequest,
     Repository,
+    Review,
+    ReviewComment,
 )
 
 __all__ = [
+    "Citation",
     "CitationKind",
     "CodeChunk",
     "Convention",
@@ -31,6 +35,8 @@ __all__ = [
     "PullRequest",
     "PullRequestState",
     "Repository",
+    "Review",
+    "ReviewComment",
     "ReviewStatus",
     "Severity",
     "SymbolKind",
