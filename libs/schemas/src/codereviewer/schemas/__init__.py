@@ -9,17 +9,26 @@ from codereviewer.schemas.enums import (
     Severity,
     SymbolKind,
 )
-from codereviewer.schemas.models import CodeChunk, DomainModel, IndexedFile, Repository
+from codereviewer.schemas.models import (
+    CodeChunk,
+    Convention,
+    DomainModel,
+    IndexedFile,
+    PullRequest,
+    Repository,
+)
 
 __all__ = [
     "CitationKind",
     "CodeChunk",
+    "Convention",
     "ConventionSource",
     "DiffSide",
     "DomainModel",
     "IndexStatus",
     "IndexedFile",
     "Language",
+    "PullRequest",
     "PullRequestState",
     "Repository",
     "ReviewStatus",

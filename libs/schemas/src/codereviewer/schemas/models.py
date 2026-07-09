@@ -1,9 +1,26 @@
 from datetime import datetime
-from typing import Self
+from typing import Annotated, Self
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
-from codereviewer.schemas.enums import IndexStatus, Language, SymbolKind
+from codereviewer.schemas.enums import (
+    ConventionSource,
+    IndexStatus,
+    Language,
+    PullRequestState,
+    SymbolKind,
+)
+
+# String fields holding verbatim text (source code, patches) opt out of the model-level
+# whitespace stripping that StrippedStrModel applies to identifier fields.
+VerbatimStr = Annotated[str, StringConstraints(strip_whitespace=False)]
 
 
 class DomainModel(BaseModel):
@@ -82,3 +99,38 @@ class CodeChunk(DomainModel):
         if self.end_line < self.start_line:
             raise ValueError("end_line must be >= start_line")
         return self
+
+
+class PullRequest(StrippedStrModel):
+    """A pull request under review. Identity fields mirror GitHub's PR payload."""
+
+    number: int = Field(ge=1)
+    head_sha: str = Field(min_length=1)
+    base_sha: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    author: str = Field(min_length=1)
+    state: PullRequestState = PullRequestState.open
+
+
+class Convention(StrippedStrModel):
+    """A learned rule about the codebase, retrieved as grounding during review.
+
+    ``example_code`` is verbatim source and keeps its whitespace; ``title``/``description``
+    are prose and are stripped. ``confidence`` is a 0..1 score; inactive conventions are not
+    retrieved (``active`` defaults to True).
+    """
+
+    title: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    example_code: VerbatimStr | None = None
+    source: ConventionSource
+    confidence: float = Field(ge=0.0, le=1.0)
+    active: bool = True
+
+    @field_validator("example_code")
+    @classmethod
+    def _blank_example_is_absent(cls, value: str | None) -> str | None:
+        # A blank snippet carries no information; treat it as no example rather than "".
+        if value is not None and not value.strip():
+            return None
+        return value
