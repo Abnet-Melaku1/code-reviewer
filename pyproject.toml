@@ -5,6 +5,7 @@ description = "CodeReviewer.ai — RAG-powered pull-request reviewer that learns
 requires-python = ">=3.12"
 dependencies = [
     "codereviewer-schemas",
+    "codereviewer-db",
 ]
 
 [tool.uv]
@@ -15,6 +16,7 @@ members = ["libs/*"]
 
 [tool.uv.sources]
 codereviewer-schemas = { workspace = true }
+codereviewer-db = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -38,7 +40,7 @@ python_version = "3.12"
 strict = true
 namespace_packages = true
 explicit_package_bases = true
-mypy_path = "libs/schemas/src"
+mypy_path = ["libs/schemas/src", "libs/db/src"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
