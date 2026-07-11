@@ -26,6 +26,11 @@ def test_repository_index_status_is_domain_checked() -> None:
     assert checks, "enum column should be enforced by a CHECK constraint"
 
 
+def test_repository_enforces_positive_installation_id() -> None:
+    texts = [str(c.sqltext) for c in TABLE.constraints if isinstance(c, CheckConstraint)]
+    assert any("github_installation_id > 0" in text for text in texts)
+
+
 def test_repository_nullable_fields() -> None:
     assert TABLE.columns["indexed_commit_sha"].nullable is True
     assert TABLE.columns["last_indexed_at"].nullable is True
