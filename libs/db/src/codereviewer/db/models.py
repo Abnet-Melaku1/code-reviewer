@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -15,11 +16,19 @@ from sqlalchemy import (
     UniqueConstraint,
     false,
     text,
+    true,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
 
 from codereviewer.db.base import Base, IntPk, TimestampMixin
-from codereviewer.schemas import IndexStatus, Language, SymbolKind
+from codereviewer.schemas import (
+    ConventionSource,
+    IndexStatus,
+    Language,
+    PullRequestState,
+    ReviewStatus,
+    SymbolKind,
+)
 
 # Dimension of the embedding vector, tied to the configured embedding model
 # (voyage-code-3 @ 1024 dims). Changing the model changes this — a migration plus a full
@@ -39,6 +48,11 @@ def _str_enum(enum_type: type[StrEnum]) -> Enum:
         create_constraint=True,
         values_callable=lambda enum: [member.value for member in enum],
     )
+
+
+def _counter() -> MappedColumn[int]:
+    """A non-negative running count/metric that starts at zero, in the DB as well as the ORM."""
+    return mapped_column(Integer, default=0, server_default=text("0"))
 
 
 class Repository(IntPk, TimestampMixin, Base):
@@ -112,3 +126,79 @@ class CodeChunk(IntPk, TimestampMixin, Base):
     content: Mapped[str] = mapped_column(Text)
     embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM))
     token_count: Mapped[int] = mapped_column(Integer)
+
+
+class Convention(IntPk, TimestampMixin, Base):
+    """A learned rule about the codebase. Mirrors codereviewer.schemas.Convention."""
+
+    __tablename__ = "conventions"
+    __table_args__ = (
+        CheckConstraint("confidence >= 0 AND confidence <= 1", name="confidence_in_unit_interval"),
+    )
+
+    repository_id: Mapped[int] = mapped_column(
+        ForeignKey("repositories.id", ondelete="CASCADE"), index=True
+    )
+    title: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    example_code: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[ConventionSource] = mapped_column(_str_enum(ConventionSource))
+    confidence: Mapped[float] = mapped_column(Float)
+    active: Mapped[bool] = mapped_column(default=True, server_default=true())
+
+
+class PullRequest(IntPk, TimestampMixin, Base):
+    """A pull request under review. Mirrors codereviewer.schemas.PullRequest."""
+
+    __tablename__ = "pull_requests"
+    __table_args__ = (
+        UniqueConstraint("repository_id", "number", name="uq_pull_requests_repository_id_number"),
+        CheckConstraint("number >= 1", name="number_positive"),
+    )
+
+    repository_id: Mapped[int] = mapped_column(
+        ForeignKey("repositories.id", ondelete="CASCADE"), index=True
+    )
+    number: Mapped[int] = mapped_column(Integer)
+    head_sha: Mapped[str] = mapped_column(String(64))
+    base_sha: Mapped[str] = mapped_column(String(64))
+    title: Mapped[str] = mapped_column(String(512))
+    author: Mapped[str] = mapped_column(String(255))
+    state: Mapped[PullRequestState] = mapped_column(
+        _str_enum(PullRequestState), default=PullRequestState.open, server_default=text("'open'")
+    )
+
+
+class Review(IntPk, TimestampMixin, Base):
+    """One review run on a pull request. Mirrors codereviewer.schemas.Review.
+
+    Unique on (pull_request_id, head_sha): the idempotency key that keeps a re-run from
+    producing a duplicate review (see the review pipeline invariants).
+    """
+
+    __tablename__ = "reviews"
+    __table_args__ = (
+        UniqueConstraint("pull_request_id", "head_sha", name="uq_reviews_pull_request_id_head_sha"),
+        CheckConstraint(
+            "must_fix >= 0 AND suggestions >= 0 AND nits >= 0 AND tokens_in >= 0 "
+            "AND tokens_out >= 0 AND cost_cents >= 0 AND latency_ms >= 0",
+            name="counts_and_metrics_non_negative",
+        ),
+    )
+
+    pull_request_id: Mapped[int] = mapped_column(
+        ForeignKey("pull_requests.id", ondelete="CASCADE"), index=True
+    )
+    head_sha: Mapped[str] = mapped_column(String(64))
+    status: Mapped[ReviewStatus] = mapped_column(
+        _str_enum(ReviewStatus), default=ReviewStatus.queued, server_default=text("'queued'")
+    )
+    summary: Mapped[str | None] = mapped_column(Text)
+    must_fix: Mapped[int] = _counter()
+    suggestions: Mapped[int] = _counter()
+    nits: Mapped[int] = _counter()
+    tokens_in: Mapped[int] = _counter()
+    tokens_out: Mapped[int] = _counter()
+    cost_cents: Mapped[int] = _counter()
+    latency_ms: Mapped[int] = _counter()
+    model: Mapped[str] = mapped_column(String(255))
