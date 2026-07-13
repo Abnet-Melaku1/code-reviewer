@@ -22,11 +22,14 @@ from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
 
 from codereviewer.db.base import Base, IntPk, TimestampMixin
 from codereviewer.schemas import (
+    CitationKind,
     ConventionSource,
+    DiffSide,
     IndexStatus,
     Language,
     PullRequestState,
     ReviewStatus,
+    Severity,
     SymbolKind,
 )
 
@@ -202,3 +205,67 @@ class Review(IntPk, TimestampMixin, Base):
     cost_cents: Mapped[int] = _counter()
     latency_ms: Mapped[int] = _counter()
     model: Mapped[str] = mapped_column(String(255))
+
+
+class ReviewComment(IntPk, TimestampMixin, Base):
+    """One margin note produced by a review. Mirrors codereviewer.schemas.ReviewComment.
+
+    The grounding invariant (at least one Citation) is enforced in the schema and the review
+    pipeline (ADR-0005), not here — a "has children" rule is not a DB constraint.
+    """
+
+    __tablename__ = "review_comments"
+    __table_args__ = (
+        CheckConstraint("line >= 1", name="line_positive"),
+        CheckConstraint("github_comment_id > 0", name="github_comment_id_positive"),
+    )
+
+    review_id: Mapped[int] = mapped_column(ForeignKey("reviews.id", ondelete="CASCADE"), index=True)
+    file_path: Mapped[str] = mapped_column(String(1024))
+    line: Mapped[int] = mapped_column(Integer)
+    side: Mapped[DiffSide] = mapped_column(_str_enum(DiffSide))
+    severity: Mapped[Severity] = mapped_column(_str_enum(Severity))
+    body: Mapped[str] = mapped_column(Text)
+    suggested_patch: Mapped[str | None] = mapped_column(Text)
+    posted_to_github: Mapped[bool] = mapped_column(default=False, server_default=false())
+    github_comment_id: Mapped[int | None] = mapped_column(BigInteger)
+
+
+class Citation(IntPk, TimestampMixin, Base):
+    """Evidence grounding a review comment. Mirrors codereviewer.schemas.Citation.
+
+    A citation belongs to its comment (CASCADE), but its evidence references SET NULL: a
+    review is a historical record, so re-indexing away a cited chunk (or removing a
+    convention) must not delete the past comment — the grounding just goes stale.
+
+    That leaves a persistence-only "stale" state (kind set, target NULL) that the strict
+    schemas.Citation — which requires a present target — would reject. The read path must not
+    hydrate stale rows into schemas.Citation; it filters them or projects them into an
+    "evidence unavailable" form. The ORM->schema read mapping (with a round-trip test for the
+    stale case) will encode that when it is built. See docs/02-data-model.md 2.8.
+    """
+
+    __tablename__ = "citations"
+    __table_args__ = (
+        # The kind-consistency half of the invariant: only the target matching `kind` may be
+        # set. "Matching target present" stays the Pydantic validator's job, since SET NULL
+        # can legitimately null a matching reference after the fact.
+        CheckConstraint(
+            "(kind = 'code_chunk' AND convention_id IS NULL AND diff_ref IS NULL) "
+            "OR (kind = 'convention' AND code_chunk_id IS NULL AND diff_ref IS NULL) "
+            "OR (kind = 'diff_hunk' AND code_chunk_id IS NULL AND convention_id IS NULL)",
+            name="target_matches_kind",
+        ),
+    )
+
+    review_comment_id: Mapped[int] = mapped_column(
+        ForeignKey("review_comments.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[CitationKind] = mapped_column(_str_enum(CitationKind))
+    code_chunk_id: Mapped[int | None] = mapped_column(
+        ForeignKey("code_chunks.id", ondelete="SET NULL"), index=True
+    )
+    convention_id: Mapped[int | None] = mapped_column(
+        ForeignKey("conventions.id", ondelete="SET NULL"), index=True
+    )
+    diff_ref: Mapped[str | None] = mapped_column(String(255))
