@@ -4,7 +4,8 @@ description = "SQLAlchemy 2.0 (async) models and migrations for CodeReviewer.ai"
 version = "0.0.0"
 requires-python = ">=3.12"
 dependencies = [
-    "sqlalchemy>=2.0.36",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
     "pgvector>=0.3.6",
     "codereviewer-schemas",
 ]

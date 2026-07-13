@@ -21,6 +21,7 @@ codereviewer-db = { workspace = true }
 [dependency-groups]
 dev = [
     "pytest>=8.3",
+    "pytest-asyncio>=0.24",
     "mypy>=1.13",
     "ruff>=0.8",
 ]
@@ -45,3 +46,4 @@ mypy_path = ["libs/schemas/src", "libs/db/src"]
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["libs"]
+asyncio_mode = "auto"
