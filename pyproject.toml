@@ -22,6 +22,7 @@ codereviewer-db = { workspace = true }
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
+    "testcontainers>=4.8",
     "mypy>=1.13",
     "ruff>=0.8",
 ]
@@ -43,7 +44,14 @@ namespace_packages = true
 explicit_package_bases = true
 mypy_path = ["libs/schemas/src", "libs/db/src"]
 
+[[tool.mypy.overrides]]
+module = "testcontainers.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
-addopts = "-ra"
+addopts = "-ra -m 'not integration'"
 testpaths = ["libs"]
 asyncio_mode = "auto"
+markers = [
+    "integration: requires a live database (testcontainers/docker); excluded from the default run",
+]
