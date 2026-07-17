@@ -58,3 +58,32 @@ jobs:
         env:
           CODEREVIEWER_REQUIRE_INTEGRATION: "1"
         run: uv run pytest -m integration
+
+  gen-types:
+    name: generated contract types are fresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          enable-cache: true
+      - name: Sync
+        run: uv sync --locked
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: Install Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+      # Regenerate from the live OpenAPI schema and fail if the committed contract drifted —
+      # the deterministic export makes this a clean, reliable diff.
+      - name: Regenerate contract types
+        run: make gen-types
+      - name: Fail if the committed types are stale
+        run: git diff --exit-code -- packages/types
+
