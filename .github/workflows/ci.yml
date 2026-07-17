@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Newer pushes supersede in-flight runs on a PR; on main every commit keeps its own CI record.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: lint + types + unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          enable-cache: true
+      # --locked fails if uv.lock is out of date with pyproject, catching a forgotten lock regen.
+      - name: Sync (pinned Python from .python-version)
+        run: uv sync --locked
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: Mypy (strict)
+        run: uv run mypy libs services
+      - name: Unit + component tests
+        run: uv run pytest
+
+  integration:
+    name: integration (real Postgres + pgvector)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          enable-cache: true
+      - name: Sync
+        run: uv sync --locked
+      # Pre-pull so the pgvector-only invariants (grounding cluster: SET NULL / target CHECK /
+      # cascade) cannot silently skip; the env flag turns a missing image into a failure.
+      - name: Pre-pull database images
+        run: |
+          docker pull postgres:16
+          docker pull pgvector/pgvector:pg16
+      - name: Integration tests
+        env:
+          CODEREVIEWER_REQUIRE_INTEGRATION: "1"
+        run: uv run pytest -m integration
