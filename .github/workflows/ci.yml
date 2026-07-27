@@ -35,6 +35,8 @@ jobs:
         run: uv run mypy libs services
       - name: Unit + component tests
         run: uv run pytest
+      - name: Quality evaluation tests (eval harness)
+        run: uv run pytest -m eval
 
   integration:
     name: integration (real Postgres + pgvector)
@@ -86,4 +88,26 @@ jobs:
         run: make gen-types
       - name: Fail if the committed types are stale
         run: git diff --exit-code -- packages/types
+
+  frontend:
+    name: frontend lint + typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - name: Install Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck Types package
+        run: pnpm --filter @codereviewer/types typecheck
+      - name: Lint Web App
+        run: pnpm --filter @codereviewer/web lint
+      - name: Build Web App
+        run: pnpm --filter @codereviewer/web build
 
