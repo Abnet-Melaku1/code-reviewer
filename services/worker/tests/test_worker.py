@@ -110,17 +110,26 @@ async def test_index_repo_job(
 
 
 @pytest.mark.anyio
+@patch("codereviewer.worker.jobs.clone_repository")
+@patch("codereviewer.worker.jobs.subprocess.run")
 @patch("codereviewer.worker.jobs.run_review", new_callable=AsyncMock)
 @patch("codereviewer.worker.jobs.db_session")
 async def test_review_pr_job(
     mock_db_session: MagicMock,
     mock_run_review: AsyncMock,
+    mock_run: MagicMock,
+    mock_clone: MagicMock,
 ) -> None:
     mock_engine = AsyncMock()
     mock_session = AsyncMock()
 
     mock_db_session.make_engine.return_value = mock_engine
     mock_db_session.create_session_factory.return_value = MagicMock()
+
+    # Mock subprocess.run for git diff
+    mock_proc = MagicMock()
+    mock_proc.stdout = "mock diff content"
+    mock_run.return_value = mock_proc
 
     # Mock session scope context manager
     class MockSessionScope:
@@ -137,17 +146,26 @@ async def test_review_pr_job(
         ctx,
         pull_request_id=10,
         repository_id=20,
-        diff_content="mock diff",
+        clone_url="https://github.com/org/repo.git",
         commit_sha="sha_abc",
+        base_sha="sha_base",
     )
 
+    mock_clone.assert_called_once()
+    mock_run.assert_called_once_with(
+        ["git", "diff", "sha_base...sha_abc"],
+        cwd=ANY,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
     mock_run_review.assert_called_once_with(
         session=mock_session,
         provider=ANY,
         retriever=ANY,
         pull_request_id=10,
         repository_id=20,
-        diff_content="mock diff",
+        diff_content="mock diff content",
         commit_sha="sha_abc",
         model_name="gpt-4o",
     )

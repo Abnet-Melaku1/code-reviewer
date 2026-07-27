@@ -103,13 +103,15 @@ async def review_pr(
     ctx: Any,
     pull_request_id: int,
     repository_id: int,
-    diff_content: str,
+    clone_url: str,
     commit_sha: str,
+    base_sha: str,
 ) -> None:
     """arq job that executes a code review on a pull request.
 
-    Instantiates the LLM provider, embeddings provider, and retriever, and
-    executes the run_review agent pipeline transactionally.
+    Clones the repository at clone_url to a temporary directory, computes
+    the git diff between base_sha and commit_sha, and executes the run_review
+    agent pipeline transactionally.
     """
     provider = get_embeddings_provider()
     llm = get_llm_provider()
@@ -118,7 +120,21 @@ async def review_pr(
     engine = db_session.make_engine(config.database_url)
     session_factory = db_session.create_session_factory(engine)
 
+    # Create temporary path for repository checkout
+    temp_dir = tempfile.mkdtemp()
     try:
+        clone_repository(clone_url, temp_dir)
+
+        # Compute git diff locally (three-dot diff: merge base of base and head, to head)
+        diff_result = subprocess.run(
+            ["git", "diff", f"{base_sha}...{commit_sha}"],
+            cwd=temp_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        diff_content = diff_result.stdout
+
         async with db_session.session_scope(session_factory) as session:
             retriever = Retriever(session, provider)
             # Register analyzers
@@ -136,4 +152,5 @@ async def review_pr(
             )
             await session.commit()
     finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
         await engine.dispose()

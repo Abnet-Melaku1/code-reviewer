@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
 from codereviewer.api.health import router as health_router
+from codereviewer.api.webhooks import router as webhooks_router
 
 
 def _operation_id(route: APIRoute) -> str:
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
         generate_unique_id_function=_operation_id,
     )
     app.include_router(health_router)
+    app.include_router(webhooks_router)
     return app
 
 

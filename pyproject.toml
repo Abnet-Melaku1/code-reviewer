@@ -12,6 +12,7 @@ dependencies = [
     "codereviewer-worker",
     "codereviewer-retrieval",
     "codereviewer-reviewer",
+    "codereviewer-github",
 ]
 
 [tool.uv]
@@ -29,6 +30,7 @@ codereviewer-providers = { workspace = true }
 codereviewer-worker = { workspace = true }
 codereviewer-retrieval = { workspace = true }
 codereviewer-reviewer = { workspace = true }
+codereviewer-github = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -47,6 +49,9 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query", "fastapi.Path", "fastapi.Body", "fastapi.Security"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["codereviewer"]
 
@@ -55,7 +60,7 @@ python_version = "3.12"
 strict = true
 namespace_packages = true
 explicit_package_bases = true
-mypy_path = ["libs/schemas/src", "libs/db/src", "services/api/src", "libs/indexer/src", "libs/providers/src", "services/worker/src", "libs/retrieval/src", "libs/reviewer/src"]
+mypy_path = ["libs/schemas/src", "libs/db/src", "services/api/src", "libs/indexer/src", "libs/providers/src", "services/worker/src", "libs/retrieval/src", "libs/reviewer/src", "libs/github/src"]
 
 [[tool.mypy.overrides]]
 module = "testcontainers.*"
