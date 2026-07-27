@@ -18,8 +18,9 @@ from sqlalchemy import (
     text,
     true,
 )
-from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
+from sqlalchemy.orm import Mapped, MappedColumn, mapped_column, relationship
 
+import codereviewer.schemas as schemas
 from codereviewer.db.base import Base, IntPk, TimestampMixin
 from codereviewer.schemas import (
     CitationKind,
@@ -206,6 +207,22 @@ class Review(IntPk, TimestampMixin, Base):
     latency_ms: Mapped[int] = _counter()
     model: Mapped[str] = mapped_column(String(255))
 
+    def to_schema(self) -> schemas.Review:
+        """Map ORM entity to codereviewer.schemas.Review domain model."""
+        return schemas.Review(
+            head_sha=self.head_sha,
+            status=self.status,
+            summary=self.summary,
+            must_fix=self.must_fix,
+            suggestions=self.suggestions,
+            nits=self.nits,
+            tokens_in=self.tokens_in,
+            tokens_out=self.tokens_out,
+            cost_cents=self.cost_cents,
+            latency_ms=self.latency_ms,
+            model=self.model,
+        )
+
 
 class ReviewComment(IntPk, TimestampMixin, Base):
     """One margin note produced by a review. Mirrors codereviewer.schemas.ReviewComment.
@@ -229,6 +246,29 @@ class ReviewComment(IntPk, TimestampMixin, Base):
     suggested_patch: Mapped[str | None] = mapped_column(Text)
     posted_to_github: Mapped[bool] = mapped_column(default=False, server_default=false())
     github_comment_id: Mapped[int | None] = mapped_column(BigInteger)
+
+    citations: Mapped[list["Citation"]] = relationship(
+        back_populates="review_comment", cascade="all, delete-orphan", lazy="selectin"
+    )
+
+    def to_schema(self) -> schemas.ReviewComment:
+        """Map ORM entity to codereviewer.schemas.ReviewComment domain model."""
+        schema_citations = []
+        for citation in self.citations:
+            mapped = citation.to_schema()
+            if mapped is not None:
+                schema_citations.append(mapped)
+        return schemas.ReviewComment(
+            file_path=self.file_path,
+            line=self.line,
+            side=self.side,
+            severity=self.severity,
+            body=self.body,
+            suggested_patch=self.suggested_patch,
+            posted_to_github=self.posted_to_github,
+            github_comment_id=self.github_comment_id,
+            citations=schema_citations,
+        )
 
 
 class Citation(IntPk, TimestampMixin, Base):
@@ -269,3 +309,41 @@ class Citation(IntPk, TimestampMixin, Base):
         ForeignKey("conventions.id", ondelete="SET NULL"), index=True
     )
     diff_ref: Mapped[str | None] = mapped_column(String(255))
+
+    review_comment: Mapped["ReviewComment"] = relationship(back_populates="citations")
+
+    def to_schema(self) -> schemas.Citation | None:
+        """Map ORM entity to codereviewer.schemas.Citation domain model.
+
+        If a referenced code chunk or convention has been deleted, it projects
+        the stale citation into a diff_hunk kind referencing the stale state,
+        preserving the historical review record without failing validation.
+        """
+        if self.kind == CitationKind.code_chunk:
+            if self.code_chunk_id is not None:
+                return schemas.Citation(
+                    kind=self.kind,
+                    code_chunk_id=self.code_chunk_id,
+                )
+            else:
+                return schemas.Citation(
+                    kind=CitationKind.diff_hunk,
+                    diff_ref="stale: code chunk deleted",
+                )
+        elif self.kind == CitationKind.convention:
+            if self.convention_id is not None:
+                return schemas.Citation(
+                    kind=self.kind,
+                    convention_id=self.convention_id,
+                )
+            else:
+                return schemas.Citation(
+                    kind=CitationKind.diff_hunk,
+                    diff_ref="stale: convention deleted",
+                )
+        elif self.kind == CitationKind.diff_hunk and self.diff_ref is not None:
+            return schemas.Citation(
+                kind=self.kind,
+                diff_ref=self.diff_ref,
+            )
+        return None

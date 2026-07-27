@@ -15,14 +15,16 @@ import subprocess
 from collections.abc import Iterator
 
 import pytest
-from sqlalchemy import func, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine
 from testcontainers.postgres import PostgresContainer
 
+import codereviewer.schemas as schemas
 from codereviewer.db.base import Base
 from codereviewer.db.models import (
     EMBEDDING_DIM,
+    Citation,
     CodeChunk,
     Convention,
     IndexedFile,
@@ -32,7 +34,15 @@ from codereviewer.db.models import (
     ReviewComment,
 )
 from codereviewer.db.session import create_session_factory, make_engine
-from codereviewer.schemas import ConventionSource, DiffSide, Language, Severity, SymbolKind
+from codereviewer.schemas import (
+    CitationKind,
+    ConventionSource,
+    DiffSide,
+    Language,
+    ReviewStatus,
+    Severity,
+    SymbolKind,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -257,5 +267,153 @@ async def test_pgvector_round_trip_and_cosine_search(pgvector_url: str) -> None:
             )
             assert nearest is not None
             assert nearest.id == near_id
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.integration
+async def test_stale_citation_mapping(pgvector_url: str) -> None:
+    engine = await _prepared_engine(pgvector_url, with_vector=True)
+    try:
+        factory = create_session_factory(engine)
+        async with factory() as session:
+            # 1. Create Repository
+            repo = Repository(
+                github_installation_id=3, owner="testowner", name="testrepo", default_branch="main"
+            )
+            session.add(repo)
+            await session.flush()
+
+            # 2. Create CodeChunk and Convention
+            file = IndexedFile(
+                repository_id=repo.id, path="utils.py", language=Language.python, blob_sha="sha123"
+            )
+            session.add(file)
+            await session.flush()
+
+            chunk = CodeChunk(
+                indexed_file_id=file.id,
+                symbol_kind=SymbolKind.function,
+                start_line=10,
+                end_line=20,
+                content="def helper(): ...",
+                embedding=[0.1] * EMBEDDING_DIM,
+                token_count=10,
+            )
+            convention = Convention(
+                repository_id=repo.id,
+                title="Use Helper Functions",
+                description="Always use helper functions.",
+                source=ConventionSource.inferred,
+                confidence=0.9,
+            )
+            session.add_all([chunk, convention])
+            await session.flush()
+
+            # 3. Create Review and ReviewComment with Citations
+            pr = PullRequest(
+                repository_id=repo.id,
+                number=5,
+                head_sha="head123",
+                base_sha="base123",
+                title="PR Title",
+                author="developer",
+            )
+            session.add(pr)
+            await session.flush()
+
+            review = Review(
+                pull_request_id=pr.id,
+                head_sha="head123",
+                status=ReviewStatus.completed,
+                model="gpt-4o",
+            )
+            session.add(review)
+            await session.flush()
+
+            comment = ReviewComment(
+                review_id=review.id,
+                file_path="main.py",
+                line=15,
+                side=DiffSide.right,
+                severity=Severity.nit,
+                body="Comment body",
+            )
+            session.add(comment)
+            await session.flush()
+
+            citation_chunk = Citation(
+                review_comment_id=comment.id,
+                kind=CitationKind.code_chunk,
+                code_chunk_id=chunk.id,
+            )
+            citation_conv = Citation(
+                review_comment_id=comment.id,
+                kind=CitationKind.convention,
+                convention_id=convention.id,
+            )
+            citation_diff = Citation(
+                review_comment_id=comment.id,
+                kind=CitationKind.diff_hunk,
+                diff_ref="main.py#L12-18",
+            )
+            session.add_all([citation_chunk, citation_conv, citation_diff])
+            await session.commit()
+
+            comment_id = comment.id
+
+        # 4. Delete CodeChunk and Convention to trigger SET NULL cascade
+        async with factory() as session:
+            await session.execute(delete(CodeChunk).where(CodeChunk.id == chunk.id))
+            await session.execute(delete(Convention).where(Convention.id == convention.id))
+            await session.commit()
+
+        # 5. Reload ReviewComment and verify foreign keys are NULLed out
+        async with factory() as session:
+            reloaded_comment = await session.scalar(
+                select(ReviewComment).where(ReviewComment.id == comment_id)
+            )
+            assert reloaded_comment is not None
+            assert len(reloaded_comment.citations) == 3
+
+            # Find the citations by original kind
+            cit_chunk_orm = next(
+                c for c in reloaded_comment.citations if c.kind == CitationKind.code_chunk
+            )
+            cit_conv_orm = next(
+                c for c in reloaded_comment.citations if c.kind == CitationKind.convention
+            )
+            cit_diff_orm = next(
+                c for c in reloaded_comment.citations if c.kind == CitationKind.diff_hunk
+            )
+
+            assert cit_chunk_orm.code_chunk_id is None
+            assert cit_conv_orm.convention_id is None
+            assert cit_diff_orm.diff_ref == "main.py#L12-18"
+
+            # 6. Call to_schema() and verify it maps correctly to the domain models
+            schema_comment = reloaded_comment.to_schema()
+            assert isinstance(schema_comment, schemas.ReviewComment)
+            assert len(schema_comment.citations) == 3
+
+            # Verify the citations in the mapped schema
+            # Stale citations must have been projected to diff_hunk with the stale messages
+            chunk_citation = next(
+                c for c in schema_comment.citations if c.diff_ref == "stale: code chunk deleted"
+            )
+            assert chunk_citation.kind == CitationKind.diff_hunk
+            assert chunk_citation.code_chunk_id is None
+
+            conv_citation = next(
+                c for c in schema_comment.citations if c.diff_ref == "stale: convention deleted"
+            )
+            assert conv_citation.kind == CitationKind.diff_hunk
+            assert conv_citation.convention_id is None
+
+            diff_citation = next(
+                c for c in schema_comment.citations if c.diff_ref == "main.py#L12-18"
+            )
+            assert diff_citation.kind == CitationKind.diff_hunk
+
     finally:
         await engine.dispose()
