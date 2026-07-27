@@ -1,6 +1,6 @@
-from codereviewer.indexer.walker import compute_git_blob_sha, walk_files
 import pathlib
 
+from codereviewer.indexer.walker import compute_git_blob_sha, walk_files
 from codereviewer.schemas.enums import Language
 
 

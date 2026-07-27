@@ -22,6 +22,7 @@ def test_get_embeddings_provider_default() -> None:
 @pytest.mark.anyio
 @patch("codereviewer.worker.jobs.clone_repository")
 @patch("codereviewer.worker.jobs.index_repository_files", new_callable=AsyncMock)
+@patch("codereviewer.worker.jobs.index_repository_delta", new_callable=AsyncMock)
 @patch("codereviewer.worker.jobs.db_session")
 @patch("codereviewer.worker.jobs.tempfile.mkdtemp")
 @patch("codereviewer.worker.jobs.shutil.rmtree")
@@ -29,6 +30,7 @@ async def test_index_repo_job(
     mock_rmtree: MagicMock,
     mock_mkdtemp: MagicMock,
     mock_db_session: MagicMock,
+    mock_index_delta: AsyncMock,
     mock_index_pipeline: AsyncMock,
     mock_clone: MagicMock,
 ) -> None:
@@ -50,7 +52,7 @@ async def test_index_repo_job(
 
     mock_db_session.session_scope.return_value = MockSessionScope()
 
-    # Call job
+    # Case 1: Call job without base_sha (Full index)
     ctx: dict[str, object] = {}
     await index_repo(
         ctx,
@@ -71,7 +73,37 @@ async def test_index_repo_job(
         provider=ANY,
         commit_sha="sha_abc",
     )
+    mock_index_delta.assert_not_called()
+    mock_rmtree.assert_called_once_with("/tmp/mock-repo", ignore_errors=True)
+    mock_engine.dispose.assert_called_once()
 
-    # Verify clean up and resources disposal
+    # Reset mocks
+    mock_clone.reset_mock()
+    mock_index_pipeline.reset_mock()
+    mock_index_delta.reset_mock()
+    mock_rmtree.reset_mock()
+    mock_engine.dispose.reset_mock()
+
+    # Case 2: Call job with base_sha (Delta index)
+    await index_repo(
+        ctx,
+        repository_id=123,
+        clone_url="https://github.com/org/repo.git",
+        commit_sha="sha_abc",
+        base_sha="sha_base",
+    )
+
+    mock_clone.assert_called_once_with("https://github.com/org/repo.git", "/tmp/mock-repo")
+    mock_index_pipeline.assert_not_called()
+    mock_index_delta.assert_called_once_with(
+        session=mock_session,
+        repo_path="/tmp/mock-repo",
+        repository_id=123,
+        provider=ANY,
+        base_sha="sha_base",
+        head_sha="sha_abc",
+    )
+
+    # Verify clean up and resources disposal for Case 2
     mock_rmtree.assert_called_once_with("/tmp/mock-repo", ignore_errors=True)
     mock_engine.dispose.assert_called_once()

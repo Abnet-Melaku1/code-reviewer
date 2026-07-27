@@ -26,6 +26,18 @@ def compute_git_blob_sha(content_bytes: bytes) -> str:
     return hasher.hexdigest()
 
 
+LANGUAGE_EXTENSIONS = {
+    ".py": Language.python,
+    ".ts": Language.typescript,
+    ".tsx": Language.typescript,
+    ".js": Language.javascript,
+    ".jsx": Language.javascript,
+    ".go": Language.go,
+    ".rs": Language.rust,
+    ".java": Language.java,
+}
+
+
 def is_binary_file(filepath: str) -> bool:
     """Check if a file is binary by searching for null bytes in its first block."""
     try:
@@ -86,16 +98,7 @@ def walk_files(repo_path: str) -> list[FileCandidate]:
     checker = GitIgnoreChecker(repo_path)
     candidates: list[FileCandidate] = []
 
-    ext_map = {
-        ".py": Language.python,
-        ".ts": Language.typescript,
-        ".tsx": Language.typescript,
-        ".js": Language.javascript,
-        ".jsx": Language.javascript,
-        ".go": Language.go,
-        ".rs": Language.rust,
-        ".java": Language.java,
-    }
+    ext_map = LANGUAGE_EXTENSIONS
 
     for root, dirs, files in os.walk(repo_path):
         # Prune ignored/standard-ignored directories in-place to avoid unnecessary walks

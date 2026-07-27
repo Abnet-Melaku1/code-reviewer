@@ -4,7 +4,7 @@ import tempfile
 from typing import Any
 
 import codereviewer.db.session as db_session
-from codereviewer.indexer.pipeline import index_repository_files
+from codereviewer.indexer.pipeline import index_repository_delta, index_repository_files
 from codereviewer.providers.base import EmbeddingsProvider
 from codereviewer.providers.fake import FakeEmbeddingsProvider
 from codereviewer.providers.openai import OpenAIEmbeddingsProvider
@@ -38,11 +38,18 @@ def clone_repository(clone_url: str, dest_path: str) -> None:
     )
 
 
-async def index_repo(ctx: Any, repository_id: int, clone_url: str, commit_sha: str) -> None:
+async def index_repo(
+    ctx: Any,
+    repository_id: int,
+    clone_url: str,
+    commit_sha: str,
+    base_sha: str | None = None,
+) -> None:
     """arq job that indexes a repository.
 
     Clones the repository at clone_url to a temporary directory, initializes
-    the database engine and embeddings provider, and executes the indexing pipeline.
+    the database engine and embeddings provider, and executes either the full
+    or delta indexing pipeline.
     """
     provider = get_embeddings_provider()
 
@@ -57,13 +64,23 @@ async def index_repo(ctx: Any, repository_id: int, clone_url: str, commit_sha: s
 
         # Run pipeline transactionally
         async with db_session.session_scope(session_factory) as session:
-            await index_repository_files(
-                session=session,
-                repo_path=temp_dir,
-                repository_id=repository_id,
-                provider=provider,
-                commit_sha=commit_sha,
-            )
+            if base_sha:
+                await index_repository_delta(
+                    session=session,
+                    repo_path=temp_dir,
+                    repository_id=repository_id,
+                    provider=provider,
+                    base_sha=base_sha,
+                    head_sha=commit_sha,
+                )
+            else:
+                await index_repository_files(
+                    session=session,
+                    repo_path=temp_dir,
+                    repository_id=repository_id,
+                    provider=provider,
+                    commit_sha=commit_sha,
+                )
             await session.commit()
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
