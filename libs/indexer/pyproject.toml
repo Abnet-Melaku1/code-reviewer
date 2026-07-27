@@ -5,9 +5,11 @@ description = "Repository cloning, file walking, and tree-sitter AST-aware chunk
 requires-python = ">=3.12"
 dependencies = [
     "codereviewer-schemas",
+    "codereviewer-db",
     "tree-sitter>=0.21.0,<0.22.0",
     "tree-sitter-languages>=1.10.0",
     "tiktoken>=0.7.0",
+    "pathspec>=0.12.0",
 ]
 
 [build-system]

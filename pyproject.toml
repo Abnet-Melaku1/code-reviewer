@@ -8,6 +8,7 @@ dependencies = [
     "codereviewer-db",
     "codereviewer-api",
     "codereviewer-indexer",
+    "codereviewer-providers",
 ]
 
 [tool.uv]
@@ -21,6 +22,7 @@ codereviewer-schemas = { workspace = true }
 codereviewer-db = { workspace = true }
 codereviewer-api = { workspace = true }
 codereviewer-indexer = { workspace = true }
+codereviewer-providers = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -47,7 +49,7 @@ python_version = "3.12"
 strict = true
 namespace_packages = true
 explicit_package_bases = true
-mypy_path = ["libs/schemas/src", "libs/db/src", "services/api/src", "libs/indexer/src"]
+mypy_path = ["libs/schemas/src", "libs/db/src", "services/api/src", "libs/indexer/src", "libs/providers/src"]
 
 [[tool.mypy.overrides]]
 module = "testcontainers.*"

@@ -1,0 +1,17 @@
+[project]
+name = "codereviewer-providers"
+version = "0.0.0"
+description = "Embedding and LLM provider adapters for CodeReviewer.ai"
+requires-python = ">=3.12"
+dependencies = [
+    "codereviewer-schemas",
+    "openai>=1.0.0",
+    "voyageai>=0.2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codereviewer"]
