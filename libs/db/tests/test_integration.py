@@ -102,8 +102,32 @@ async def _prepared_engine(url: str, *, with_vector: bool) -> AsyncEngine:
     async with engine.begin() as conn:
         if with_vector:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await conn.execute(text("DROP TABLE IF EXISTS alembic_version CASCADE"))
         await conn.run_sync(lambda c: Base.metadata.drop_all(c, tables=tables))
-        await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
+
+    if with_vector:
+        import os
+        import subprocess
+        import sys
+
+        env = os.environ.copy()
+        env["DATABASE_URL"] = url
+        db_dir = os.path.dirname(os.path.dirname(__file__))
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "alembic", "upgrade", "head"],
+                cwd=db_dir,
+                env=env,
+                check=True,
+                capture_output=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print("Alembic stdout:", e.stdout.decode())
+            print("Alembic stderr:", e.stderr.decode())
+            raise
+    else:
+        async with engine.begin() as conn:
+            await conn.run_sync(lambda c: Base.metadata.create_all(c, tables=tables))
     return engine
 
 
