@@ -67,9 +67,10 @@ module = "testcontainers.*"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-addopts = "-ra -m 'not integration'"
+addopts = "-ra -m 'not integration and not eval'"
 testpaths = ["libs", "services"]
 asyncio_mode = "auto"
 markers = [
     "integration: requires a live database (testcontainers/docker); excluded from the default run",
+    "eval: quality evaluation tests against the golden set; run using -m eval",
 ]
