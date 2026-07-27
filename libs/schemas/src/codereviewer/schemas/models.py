@@ -236,3 +236,23 @@ class Review(StrippedStrModel):
     @classmethod
     def _blank_summary_is_absent(cls, value: str | None) -> str | None:
         return _blank_to_none(value)
+
+
+class DiffHunk(DomainModel):
+    """A hunk from a git diff to be reviewed.
+
+    Whitespace is preserved verbatim.
+    """
+
+    file_path: str = Field(min_length=1)
+    content: VerbatimStr
+    start_line: int = Field(ge=1)
+    end_line: int = Field(ge=1)
+    side: DiffSide
+
+
+class RetrievedContext(DomainModel):
+    """Context gathered during RAG retrieval to ground the review of a diff hunk."""
+
+    chunks: list[CodeChunk]
+    conventions: list[Convention]

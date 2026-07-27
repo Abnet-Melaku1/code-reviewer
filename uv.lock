@@ -15,6 +15,7 @@ members = [
     "codereviewer-db",
     "codereviewer-indexer",
     "codereviewer-providers",
+    "codereviewer-retrieval",
     "codereviewer-schemas",
     "codereviewer-worker",
 ]
@@ -375,6 +376,7 @@ dependencies = [
     { name = "codereviewer-db" },
     { name = "codereviewer-indexer" },
     { name = "codereviewer-providers" },
+    { name = "codereviewer-retrieval" },
     { name = "codereviewer-schemas" },
     { name = "codereviewer-worker" },
 ]
@@ -395,6 +397,7 @@ requires-dist = [
     { name = "codereviewer-db", editable = "libs/db" },
     { name = "codereviewer-indexer", editable = "libs/indexer" },
     { name = "codereviewer-providers", editable = "libs/providers" },
+    { name = "codereviewer-retrieval", editable = "libs/retrieval" },
     { name = "codereviewer-schemas", editable = "libs/schemas" },
     { name = "codereviewer-worker", editable = "services/worker" },
 ]
@@ -477,6 +480,23 @@ requires-dist = [
     { name = "codereviewer-schemas", editable = "libs/schemas" },
     { name = "openai", specifier = ">=1.0.0" },
     { name = "voyageai", specifier = ">=0.2.0" },
+]
+
+[[package]]
+name = "codereviewer-retrieval"
+version = "0.0.0"
+source = { editable = "libs/retrieval" }
+dependencies = [
+    { name = "codereviewer-db" },
+    { name = "codereviewer-providers" },
+    { name = "codereviewer-schemas" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "codereviewer-db", editable = "libs/db" },
+    { name = "codereviewer-providers", editable = "libs/providers" },
+    { name = "codereviewer-schemas", editable = "libs/schemas" },
 ]
 
 [[package]]
