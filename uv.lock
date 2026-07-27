@@ -16,6 +16,7 @@ members = [
     "codereviewer-indexer",
     "codereviewer-providers",
     "codereviewer-retrieval",
+    "codereviewer-reviewer",
     "codereviewer-schemas",
     "codereviewer-worker",
 ]
@@ -377,6 +378,7 @@ dependencies = [
     { name = "codereviewer-indexer" },
     { name = "codereviewer-providers" },
     { name = "codereviewer-retrieval" },
+    { name = "codereviewer-reviewer" },
     { name = "codereviewer-schemas" },
     { name = "codereviewer-worker" },
 ]
@@ -398,6 +400,7 @@ requires-dist = [
     { name = "codereviewer-indexer", editable = "libs/indexer" },
     { name = "codereviewer-providers", editable = "libs/providers" },
     { name = "codereviewer-retrieval", editable = "libs/retrieval" },
+    { name = "codereviewer-reviewer", editable = "libs/reviewer" },
     { name = "codereviewer-schemas", editable = "libs/schemas" },
     { name = "codereviewer-worker", editable = "services/worker" },
 ]
@@ -500,6 +503,25 @@ requires-dist = [
 ]
 
 [[package]]
+name = "codereviewer-reviewer"
+version = "0.0.0"
+source = { editable = "libs/reviewer" }
+dependencies = [
+    { name = "codereviewer-db" },
+    { name = "codereviewer-providers" },
+    { name = "codereviewer-retrieval" },
+    { name = "codereviewer-schemas" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "codereviewer-db", editable = "libs/db" },
+    { name = "codereviewer-providers", editable = "libs/providers" },
+    { name = "codereviewer-retrieval", editable = "libs/retrieval" },
+    { name = "codereviewer-schemas", editable = "libs/schemas" },
+]
+
+[[package]]
 name = "codereviewer-schemas"
 version = "0.0.0"
 source = { editable = "libs/schemas" }
@@ -519,6 +541,8 @@ dependencies = [
     { name = "codereviewer-db" },
     { name = "codereviewer-indexer" },
     { name = "codereviewer-providers" },
+    { name = "codereviewer-retrieval" },
+    { name = "codereviewer-reviewer" },
     { name = "codereviewer-schemas" },
     { name = "pydantic-settings" },
     { name = "redis" },
@@ -530,6 +554,8 @@ requires-dist = [
     { name = "codereviewer-db", editable = "libs/db" },
     { name = "codereviewer-indexer", editable = "libs/indexer" },
     { name = "codereviewer-providers", editable = "libs/providers" },
+    { name = "codereviewer-retrieval", editable = "libs/retrieval" },
+    { name = "codereviewer-reviewer", editable = "libs/reviewer" },
     { name = "codereviewer-schemas", editable = "libs/schemas" },
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "redis", specifier = ">=5.0" },

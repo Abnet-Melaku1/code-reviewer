@@ -1,6 +1,8 @@
+import json
+
 import pytest
 
-from codereviewer.providers.fake import FakeEmbeddingsProvider
+from codereviewer.providers.fake import FakeEmbeddingsProvider, FakeLlmProvider
 
 
 @pytest.mark.anyio
@@ -22,3 +24,15 @@ async def test_fake_embeddings_provider() -> None:
 
     # Empty text case
     assert await provider.embed_texts([]) == []
+
+
+@pytest.mark.anyio
+async def test_fake_llm_provider() -> None:
+    provider = FakeLlmProvider()
+    response = await provider.generate_response("sys", "user")
+    data = json.loads(response)
+    assert len(data) == 1
+    assert data[0]["file_path"] == "src/main.py"
+
+    custom_provider = FakeLlmProvider(default_response="[]")
+    assert await custom_provider.generate_response("sys", "user") == "[]"

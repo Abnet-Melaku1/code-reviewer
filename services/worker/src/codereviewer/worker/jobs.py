@@ -5,10 +5,13 @@ from typing import Any
 
 import codereviewer.db.session as db_session
 from codereviewer.indexer.pipeline import index_repository_delta, index_repository_files
-from codereviewer.providers.base import EmbeddingsProvider
-from codereviewer.providers.fake import FakeEmbeddingsProvider
-from codereviewer.providers.openai import OpenAIEmbeddingsProvider
+from codereviewer.providers.base import EmbeddingsProvider, LlmProvider
+from codereviewer.providers.fake import FakeEmbeddingsProvider, FakeLlmProvider
+from codereviewer.providers.openai import OpenAIEmbeddingsProvider, OpenAiLlmProvider
 from codereviewer.providers.voyage import VoyageEmbeddingsProvider
+from codereviewer.retrieval.retriever import Retriever
+from codereviewer.reviewer.agent import run_review
+from codereviewer.reviewer.analyzers import register_default_analyzers
 from codereviewer.worker.config import WorkerConfig
 
 config = WorkerConfig()
@@ -27,6 +30,15 @@ def get_embeddings_provider() -> EmbeddingsProvider:
         )
     else:
         return FakeEmbeddingsProvider()
+
+
+def get_llm_provider() -> LlmProvider:
+    """Instantiate the LLM provider based on worker configuration."""
+    provider_name = config.llm_provider.lower()
+    if provider_name == "openai":
+        return OpenAiLlmProvider(api_key=config.openai_api_key, model_name=config.llm_model)
+    else:
+        return FakeLlmProvider()
 
 
 def clone_repository(clone_url: str, dest_path: str) -> None:
@@ -84,4 +96,44 @@ async def index_repo(
             await session.commit()
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+        await engine.dispose()
+
+
+async def review_pr(
+    ctx: Any,
+    pull_request_id: int,
+    repository_id: int,
+    diff_content: str,
+    commit_sha: str,
+) -> None:
+    """arq job that executes a code review on a pull request.
+
+    Instantiates the LLM provider, embeddings provider, and retriever, and
+    executes the run_review agent pipeline transactionally.
+    """
+    provider = get_embeddings_provider()
+    llm = get_llm_provider()
+
+    # Initialize database engine and session factory
+    engine = db_session.make_engine(config.database_url)
+    session_factory = db_session.create_session_factory(engine)
+
+    try:
+        async with db_session.session_scope(session_factory) as session:
+            retriever = Retriever(session, provider)
+            # Register analyzers
+            register_default_analyzers(llm)
+            # Execute review pipeline
+            await run_review(
+                session=session,
+                provider=llm,
+                retriever=retriever,
+                pull_request_id=pull_request_id,
+                repository_id=repository_id,
+                diff_content=diff_content,
+                commit_sha=commit_sha,
+                model_name=config.llm_model,
+            )
+            await session.commit()
+    finally:
         await engine.dispose()

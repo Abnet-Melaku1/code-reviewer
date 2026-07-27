@@ -4,7 +4,7 @@ import pytest
 
 from codereviewer.providers.fake import FakeEmbeddingsProvider
 from codereviewer.worker.config import WorkerConfig
-from codereviewer.worker.jobs import get_embeddings_provider, index_repo
+from codereviewer.worker.jobs import get_embeddings_provider, index_repo, review_pr
 
 
 def test_worker_config() -> None:
@@ -106,4 +106,49 @@ async def test_index_repo_job(
 
     # Verify clean up and resources disposal for Case 2
     mock_rmtree.assert_called_once_with("/tmp/mock-repo", ignore_errors=True)
+    mock_engine.dispose.assert_called_once()
+
+
+@pytest.mark.anyio
+@patch("codereviewer.worker.jobs.run_review", new_callable=AsyncMock)
+@patch("codereviewer.worker.jobs.db_session")
+async def test_review_pr_job(
+    mock_db_session: MagicMock,
+    mock_run_review: AsyncMock,
+) -> None:
+    mock_engine = AsyncMock()
+    mock_session = AsyncMock()
+
+    mock_db_session.make_engine.return_value = mock_engine
+    mock_db_session.create_session_factory.return_value = MagicMock()
+
+    # Mock session scope context manager
+    class MockSessionScope:
+        async def __aenter__(self) -> AsyncMock:
+            return mock_session
+
+        async def __aexit__(self, *args: object) -> None:
+            pass
+
+    mock_db_session.session_scope.return_value = MockSessionScope()
+
+    ctx: dict[str, object] = {}
+    await review_pr(
+        ctx,
+        pull_request_id=10,
+        repository_id=20,
+        diff_content="mock diff",
+        commit_sha="sha_abc",
+    )
+
+    mock_run_review.assert_called_once_with(
+        session=mock_session,
+        provider=ANY,
+        retriever=ANY,
+        pull_request_id=10,
+        repository_id=20,
+        diff_content="mock diff",
+        commit_sha="sha_abc",
+        model_name="gpt-4o",
+    )
     mock_engine.dispose.assert_called_once()

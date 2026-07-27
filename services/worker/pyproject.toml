@@ -8,6 +8,8 @@ dependencies = [
     "codereviewer-db",
     "codereviewer-providers",
     "codereviewer-indexer",
+    "codereviewer-retrieval",
+    "codereviewer-reviewer",
     "arq>=0.25",
     "redis>=5.0",
     "pydantic-settings>=2.0",

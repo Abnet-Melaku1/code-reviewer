@@ -90,6 +90,7 @@ class CodeChunk(DomainModel):
     of this domain schema. Line numbers are 1-based and inclusive.
     """
 
+    id: int | None = None
     symbol_kind: SymbolKind
     symbol_name: str | None = Field(default=None, min_length=1)
     start_line: int = Field(ge=1)
@@ -131,6 +132,7 @@ class Convention(StrippedStrModel):
     retrieved (``active`` defaults to True).
     """
 
+    id: int | None = None
     title: str = Field(min_length=1)
     description: str = Field(min_length=1)
     example_code: VerbatimStr | None = None

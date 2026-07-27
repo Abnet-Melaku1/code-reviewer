@@ -1,6 +1,6 @@
 from openai import AsyncOpenAI
 
-from codereviewer.providers.base import EmbeddingsProvider
+from codereviewer.providers.base import EmbeddingsProvider, LlmProvider
 
 
 class OpenAIEmbeddingsProvider(EmbeddingsProvider):
@@ -38,3 +38,26 @@ class OpenAIEmbeddingsProvider(EmbeddingsProvider):
     def dimension(self) -> int:
         """The output dimension of the OpenAI embedding model."""
         return self._dimension
+
+
+class OpenAiLlmProvider(LlmProvider):
+    """OpenAI Chat Completion provider wrapper."""
+
+    def __init__(self, api_key: str, model_name: str = "gpt-4o"):
+        self._client = AsyncOpenAI(api_key=api_key)
+        self._model_name = model_name
+
+    async def generate_response(
+        self, system_prompt: str, user_prompt: str, temperature: float = 0.2
+    ) -> str:
+        """Generate response using OpenAI chat completions."""
+        response = await self._client.chat.completions.create(
+            model=self._model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=temperature,
+        )
+        content = response.choices[0].message.content
+        return content if content is not None else ""

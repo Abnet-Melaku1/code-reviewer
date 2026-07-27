@@ -53,6 +53,7 @@ class Retriever:
         # Map DB chunks to schema CodeChunks
         schema_chunks = [
             SchemaCodeChunk(
+                id=chunk.id,
                 symbol_kind=chunk.symbol_kind,
                 symbol_name=chunk.symbol_name,
                 start_line=chunk.start_line,
@@ -70,12 +71,11 @@ class Retriever:
                 db_models.Convention.active,
             )
         )
-        db_conventions: list[db_models.Convention] = list(
-            conv_result.scalars().all()
-        )
+        db_conventions: list[db_models.Convention] = list(conv_result.scalars().all())
 
         schema_conventions = [
             SchemaConvention(
+                id=conv.id,
                 title=conv.title,
                 description=conv.description,
                 example_code=conv.example_code,

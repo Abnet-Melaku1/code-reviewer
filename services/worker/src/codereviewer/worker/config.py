@@ -12,3 +12,5 @@ class WorkerConfig(BaseSettings):
     voyage_api_key: str = ""
     openai_api_key: str = ""
     embeddings_model: str = "voyage-code-3"
+    llm_provider: str = "fake"
+    llm_model: str = "gpt-4o"
