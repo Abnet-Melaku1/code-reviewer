@@ -1,7 +1,8 @@
 from enum import StrEnum
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
+from sqlalchemy import text
 
 router = APIRouter(tags=["health"])
 
@@ -29,11 +30,31 @@ async def healthz() -> HealthResponse:
     return HealthResponse(status=Liveness.ok)
 
 
-@router.get("/readyz")
-async def readyz() -> ReadyResponse:
-    """Readiness: the service can serve traffic.
+@router.get(
+    "/readyz",
+    responses={503: {"description": "Service not ready"}},
+)
+async def readyz(request: Request) -> ReadyResponse:
+    """Readiness: check database and Redis connection status."""
+    # 1. Check Database
+    try:
+        engine = request.app.state.db_engine
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database connection failed: {e}",
+        ) from e
 
-    Trivially ready for now; it will check dependencies (database, Redis) once they are
-    wired, and report ``not_ready`` so the orchestrator holds traffic until they are up.
-    """
+    # 2. Check Redis
+    try:
+        redis_client = request.app.state.redis_client
+        await redis_client.ping()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Redis connection failed: {e}",
+        ) from e
+
     return ReadyResponse(status=Readiness.ready)

@@ -17,13 +17,12 @@ router = APIRouter(tags=["webhooks"])
 config = ApiConfig()
 
 
-async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_db_session(request: Request) -> AsyncGenerator[AsyncSession, None]:
     """Dependency injection to provide clean database sessions."""
-    engine = db_session.make_engine(config.database_url)
+    engine = request.app.state.db_engine
     factory = db_session.create_session_factory(engine)
     async with db_session.session_scope(factory) as session:
         yield session
-    await engine.dispose()
 
 
 async def verify_github_signature(
