@@ -20,6 +20,9 @@ importers:
         specifier: ^19.2.7
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@codereviewer/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@types/node':
         specifier: ^24.13.2
         version: 24.13.3
@@ -42,8 +45,13 @@ importers:
         specifier: ^8.1.1
         version: 8.1.5(@types/node@24.13.3)
 
+  packages/config: {}
+
   packages/types:
     devDependencies:
+      '@codereviewer/config':
+        specifier: workspace:*
+        version: link:../config
       openapi-typescript:
         specifier: ^7.4.0
         version: 7.13.0(typescript@5.9.3)
