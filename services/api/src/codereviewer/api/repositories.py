@@ -58,7 +58,6 @@ async def create_repository(
     return repo.to_schema()
 
 
-
 @router.get("/repositories", response_model=list[Repository])
 async def list_repositories(session: AsyncSession = Depends(get_db_session)) -> list[Repository]:
     """List all registered repositories in the system."""

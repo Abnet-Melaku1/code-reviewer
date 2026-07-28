@@ -1,4 +1,6 @@
+import contextlib
 import os
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -35,7 +37,7 @@ async def run_review(
     diff_content: str,
     commit_sha: str,
     model_name: str = "gpt-4o",
-    redis_client: object = None,
+    redis_client: Any = None,
 ) -> db_models.Review:
     """Execute the full review pipeline.
 
@@ -47,13 +49,11 @@ async def run_review(
     """
     import codereviewer.schemas as schemas
 
-    async def _pub(event: object) -> None:
+    async def _pub(event: Any) -> None:
         if redis_client:
-            try:
+            with contextlib.suppress(Exception):
                 # model_dump_json is standard on Pydantic v2
                 await redis_client.publish("codereviewer:events", event.model_dump_json())
-            except Exception:
-                pass
 
     # 1. Parse diff hunks
     hunks = parse_diff_hunks(diff_content)
@@ -194,4 +194,3 @@ async def run_review(
     )
 
     return db_review
-

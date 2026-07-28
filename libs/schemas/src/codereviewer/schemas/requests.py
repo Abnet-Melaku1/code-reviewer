@@ -24,7 +24,6 @@ class ConventionUpdate(DomainModel):
     active: bool
 
 
-
 class ConventionCreate(StrippedStrModel):
     """Payload to create a new user-defined convention."""
 

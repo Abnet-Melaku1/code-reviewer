@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Generator
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -26,7 +27,7 @@ def mock_dependencies() -> Generator[tuple[MagicMock, AsyncMock, AsyncMock], Non
 
 
 @pytest.fixture
-async def client(mock_dependencies) -> AsyncIterator[AsyncClient]:
+async def client(mock_dependencies: Any) -> AsyncIterator[AsyncClient]:
     app = create_app()
     mock_engine, mock_redis, _ = mock_dependencies
     app.state.db_engine = mock_engine

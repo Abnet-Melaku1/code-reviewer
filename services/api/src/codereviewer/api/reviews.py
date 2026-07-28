@@ -5,7 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import codereviewer.db.models as db_models
 from codereviewer.api.config import ApiConfig
 from codereviewer.api.webhooks import get_db_session
-from codereviewer.github.client import HttpGitHubClient, MockGitHubClient
+from codereviewer.github.client import (
+    GitHubClient,
+    HttpGitHubClient,
+    MockGitHubClient,
+)
 from codereviewer.schemas.enums import ReviewStatus
 from codereviewer.schemas.models import PullRequest, Review, ReviewComment
 
@@ -84,8 +88,7 @@ async def create_review(
     return db_review.to_schema()
 
 
-def get_github_client(installation_id: int):
-
+def get_github_client(installation_id: int) -> GitHubClient:
     """Retrieve either HttpGitHubClient or MockGitHubClient depending on config credentials."""
     if config.github_app_id and config.github_private_key:
         return HttpGitHubClient(

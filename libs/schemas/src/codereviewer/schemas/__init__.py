@@ -57,7 +57,6 @@ __all__ = [
     "Repository",
     "RepositoryCreate",
     "RepositoryUpdate",
-
     "Review",
     "ReviewComment",
     "ReviewCommentEvent",
@@ -70,4 +69,3 @@ __all__ = [
     "SymbolKind",
     "WebSocketEvent",
 ]
-

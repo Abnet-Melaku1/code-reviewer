@@ -11,4 +11,3 @@ class ApiConfig(BaseSettings):
     github_webhook_secret: str = "super_secret_webhook_key"
     github_app_id: int | None = None
     github_private_key: str | None = None
-
