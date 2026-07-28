@@ -9,6 +9,16 @@ from codereviewer.schemas.enums import (
     Severity,
     SymbolKind,
 )
+from codereviewer.schemas.events import (
+    IndexProgressEvent,
+    IndexStatusEvent,
+    ReviewCommentEvent,
+    ReviewCompletedEvent,
+    ReviewFailedEvent,
+    ReviewProgressEvent,
+    ReviewQueuedEvent,
+    WebSocketEvent,
+)
 from codereviewer.schemas.models import (
     Citation,
     CodeChunk,
@@ -20,24 +30,44 @@ from codereviewer.schemas.models import (
     Review,
     ReviewComment,
 )
+from codereviewer.schemas.requests import (
+    ConventionCreate,
+    ConventionUpdate,
+    RepositoryCreate,
+    RepositoryUpdate,
+)
 
 __all__ = [
     "Citation",
     "CitationKind",
     "CodeChunk",
     "Convention",
+    "ConventionCreate",
     "ConventionSource",
+    "ConventionUpdate",
     "DiffSide",
     "DomainModel",
+    "IndexProgressEvent",
+    "IndexStatusEvent",
     "IndexStatus",
     "IndexedFile",
     "Language",
     "PullRequest",
     "PullRequestState",
     "Repository",
+    "RepositoryCreate",
+    "RepositoryUpdate",
+
     "Review",
     "ReviewComment",
+    "ReviewCommentEvent",
+    "ReviewCompletedEvent",
+    "ReviewFailedEvent",
+    "ReviewProgressEvent",
+    "ReviewQueuedEvent",
     "ReviewStatus",
     "Severity",
     "SymbolKind",
+    "WebSocketEvent",
 ]
+

@@ -4,6 +4,244 @@
  */
 
 export interface paths {
+    "/api/v1/pulls/{id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Reviews
+         * @description List all review runs for a pull request.
+         */
+        get: operations["reviews_list_reviews"];
+        put?: never;
+        /**
+         * Create Review
+         * @description Trigger a new code review run for a pull request.
+         */
+        post: operations["reviews_create_review"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Repositories
+         * @description List all registered repositories in the system.
+         */
+        get: operations["repositories_list_repositories"];
+        put?: never;
+        /**
+         * Create Repository
+         * @description Manually register a new repository to connect and begin indexing.
+         */
+        post: operations["repositories_create_repository"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Repository
+         * @description Get detailed status of a specific repository.
+         */
+        get: operations["repositories_get_repository"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Repository
+         * @description Update settings for a repository, notably toggling comment posting.
+         */
+        patch: operations["repositories_update_repository"];
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}/conventions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Conventions
+         * @description List learned and user-defined coding conventions for a repository.
+         */
+        get: operations["repositories_list_conventions"];
+        put?: never;
+        /**
+         * Create Convention
+         * @description Manually add a user-defined convention for the review pipeline to evaluate against.
+         */
+        post: operations["repositories_create_convention"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}/conventions/{cid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Convention
+         * @description Enable or disable a specific codebase convention.
+         */
+        patch: operations["repositories_update_convention"];
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}/pulls": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pulls
+         * @description List all pull requests registered for a specific repository.
+         */
+        get: operations["reviews_list_pulls"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{id}/reindex": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reindex Repository
+         * @description Request a full repository re-index by enqueuing a worker job.
+         */
+        post: operations["repositories_reindex_repository"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Review
+         * @description Get the status and summary metrics of a specific review run.
+         */
+        get: operations["reviews_get_review"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Review Comments
+         * @description Get all inline review comments produced by a specific review run.
+         */
+        get: operations["reviews_get_review_comments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews/{id}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Review To Github
+         * @description Publish a review's inline comments directly to the GitHub PR.
+         *
+         *     Enforces S2: raises HTTP 403 Forbidden if posting_enabled is False.
+         */
+        post: operations["reviews_post_review_to_github"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews/{id}/rerun": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rerun Review
+         * @description Manually trigger a re-run of a specific review, idempotent per (pr, head_sha).
+         */
+        post: operations["reviews_rerun_review"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -33,10 +271,7 @@ export interface paths {
         };
         /**
          * Readyz
-         * @description Readiness: the service can serve traffic.
-         *
-         *     Trivially ready for now; it will check dependencies (database, Redis) once they are
-         *     wired, and report ``not_ready`` so the orchestrator holds traffic until they are up.
+         * @description Readiness: check database and Redis connection status.
          */
         get: operations["health_readyz"];
         put?: never;
@@ -71,6 +306,88 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Citation
+         * @description Evidence grounding a review comment.
+         *
+         *     Exactly one target is populated, and it must match ``kind``: ``code_chunk_id`` for a
+         *     ``code_chunk``, ``convention_id`` for a ``convention``, ``diff_ref`` for a ``diff_hunk``.
+         *     The parent ``review_comment_id`` link is a persistence concern; the target reference is
+         *     domain payload (the UI shows what grounded each comment).
+         */
+        Citation: {
+            /** Code Chunk Id */
+            code_chunk_id?: number | null;
+            /** Convention Id */
+            convention_id?: number | null;
+            /** Diff Ref */
+            diff_ref?: string | null;
+            kind: components["schemas"]["CitationKind"];
+        };
+        /**
+         * CitationKind
+         * @description The kind of evidence grounding a review comment.
+         * @enum {string}
+         */
+        CitationKind: "code_chunk" | "convention" | "diff_hunk";
+        /**
+         * Convention
+         * @description A learned rule about the codebase, retrieved as grounding during review.
+         *
+         *     ``example_code`` is verbatim source and keeps its whitespace; ``title``/``description``
+         *     are prose and are stripped. ``confidence`` is a 0..1 score; inactive conventions are not
+         *     retrieved (``active`` defaults to True).
+         */
+        Convention: {
+            /**
+             * Active
+             * @default true
+             */
+            active: boolean;
+            /** Confidence */
+            confidence: number;
+            /** Description */
+            description: string;
+            /** Example Code */
+            example_code?: string | null;
+            /** Id */
+            id?: number | null;
+            source: components["schemas"]["ConventionSource"];
+            /** Title */
+            title: string;
+        };
+        /**
+         * ConventionCreate
+         * @description Payload to create a new user-defined convention.
+         */
+        ConventionCreate: {
+            /** Description */
+            description: string;
+            /** Example Code */
+            example_code?: string | null;
+            /** Title */
+            title: string;
+        };
+        /**
+         * ConventionSource
+         * @description How a learned convention was established.
+         * @enum {string}
+         */
+        ConventionSource: "inferred" | "from_review" | "user_defined";
+        /**
+         * ConventionUpdate
+         * @description Payload to toggle a convention's active status.
+         */
+        ConventionUpdate: {
+            /** Active */
+            active: boolean;
+        };
+        /**
+         * DiffSide
+         * @description Which side of a diff a comment anchors to.
+         * @enum {string}
+         */
+        DiffSide: "left" | "right";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -81,10 +398,42 @@ export interface components {
             status: components["schemas"]["Liveness"];
         };
         /**
+         * IndexStatus
+         * @description Lifecycle of a repository's index (see the state machine in the data model).
+         * @enum {string}
+         */
+        IndexStatus: "pending" | "indexing" | "ready" | "error";
+        /**
          * Liveness
          * @enum {string}
          */
         Liveness: "ok";
+        /**
+         * PullRequest
+         * @description A pull request under review. Identity fields mirror GitHub's PR payload.
+         */
+        PullRequest: {
+            /** Author */
+            author: string;
+            /** Base Sha */
+            base_sha: string;
+            /** Head Sha */
+            head_sha: string;
+            /** Id */
+            id?: number | null;
+            /** Number */
+            number: number;
+            /** @default open */
+            state: components["schemas"]["PullRequestState"];
+            /** Title */
+            title: string;
+        };
+        /**
+         * PullRequestState
+         * @description State of a pull request as reported by GitHub.
+         * @enum {string}
+         */
+        PullRequestState: "open" | "closed" | "merged";
         /**
          * Readiness
          * @enum {string}
@@ -94,6 +443,159 @@ export interface components {
         ReadyResponse: {
             status: components["schemas"]["Readiness"];
         };
+        /**
+         * Repository
+         * @description A connected GitHub repository and the state of its index.
+         *
+         *     ``posting_enabled`` defaults to False: posting to a PR is a dry run until a repo owner
+         *     opts in (guardrail S2). ``index_status`` starts at ``pending`` — the initial state of
+         *     the index lifecycle.
+         */
+        Repository: {
+            /** Default Branch */
+            default_branch: string;
+            /** Github Installation Id */
+            github_installation_id: number;
+            /** Id */
+            id?: number | null;
+            /** @default pending */
+            index_status: components["schemas"]["IndexStatus"];
+            /** Indexed Commit Sha */
+            indexed_commit_sha?: string | null;
+            /** Last Indexed At */
+            last_indexed_at?: string | null;
+            /** Name */
+            name: string;
+            /** Owner */
+            owner: string;
+            /**
+             * Posting Enabled
+             * @default false
+             */
+            posting_enabled: boolean;
+        };
+        /**
+         * RepositoryCreate
+         * @description Payload to register a new GitHub repository.
+         */
+        RepositoryCreate: {
+            /**
+             * Default Branch
+             * @default main
+             */
+            default_branch: string;
+            /** Github Installation Id */
+            github_installation_id: number;
+            /** Name */
+            name: string;
+            /** Owner */
+            owner: string;
+        };
+        /**
+         * RepositoryUpdate
+         * @description Payload to update repository settings.
+         */
+        RepositoryUpdate: {
+            /** Posting Enabled */
+            posting_enabled: boolean;
+        };
+        /**
+         * Review
+         * @description One review run on a pull request.
+         *
+         *     ``(pull_request_id, head_sha)`` is the idempotency key (the FK is a persistence concern).
+         *     Counts and cost/latency metrics default to zero for a freshly queued run and are filled
+         *     in as it progresses; ``model`` records the resolved model ID for audit.
+         */
+        Review: {
+            /**
+             * Cost Cents
+             * @default 0
+             */
+            cost_cents: number;
+            /** Head Sha */
+            head_sha: string;
+            /** Id */
+            id?: number | null;
+            /**
+             * Latency Ms
+             * @default 0
+             */
+            latency_ms: number;
+            /** Model */
+            model: string;
+            /**
+             * Must Fix
+             * @default 0
+             */
+            must_fix: number;
+            /**
+             * Nits
+             * @default 0
+             */
+            nits: number;
+            /** @default queued */
+            status: components["schemas"]["ReviewStatus"];
+            /**
+             * Suggestions
+             * @default 0
+             */
+            suggestions: number;
+            /** Summary */
+            summary?: string | null;
+            /**
+             * Tokens In
+             * @default 0
+             */
+            tokens_in: number;
+            /**
+             * Tokens Out
+             * @default 0
+             */
+            tokens_out: number;
+        };
+        /**
+         * ReviewComment
+         * @description One margin note. Carries at least one citation — a comment with no grounding is a bug.
+         *
+         *     Its ``(file_path, line, side)`` must exist in the actual diff; that is validated against
+         *     the diff in the review pipeline, not here. ``suggested_patch`` is a verbatim diff.
+         */
+        ReviewComment: {
+            /** Body */
+            body: string;
+            /** Citations */
+            citations: components["schemas"]["Citation"][];
+            /** File Path */
+            file_path: string;
+            /** Github Comment Id */
+            github_comment_id?: number | null;
+            /** Id */
+            id?: number | null;
+            /** Line */
+            line: number;
+            /**
+             * Posted To Github
+             * @default false
+             */
+            posted_to_github: boolean;
+            severity: components["schemas"]["Severity"];
+            side: components["schemas"]["DiffSide"];
+            /** Suggested Patch */
+            suggested_patch?: string | null;
+        };
+        /**
+         * ReviewStatus
+         * @description Lifecycle of a single review run (see the state machine in the data model).
+         * @enum {string}
+         */
+        ReviewStatus: "queued" | "running" | "completed" | "failed";
+        /**
+         * Severity
+         * @description Severity of a review comment, listed most to least urgent.
+         * @enum {string}
+         */
+        Severity: "must_fix" | "suggestion" | "nit" | "context";
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -116,6 +618,481 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    reviews_list_reviews: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Review"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reviews_create_review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Review"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repositories_list_repositories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Repository"][];
+                };
+            };
+        };
+    };
+    repositories_create_repository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Repository"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repositories_get_repository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Repository"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repositories_update_repository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RepositoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Repository"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repositories_list_conventions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Convention"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repositories_create_convention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConventionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Convention"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repositories_update_convention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+                cid: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConventionUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Convention"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reviews_list_pulls: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PullRequest"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    repositories_reindex_repository: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reviews_get_review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Review"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reviews_get_review_comments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewComment"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reviews_post_review_to_github: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string | number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reviews_rerun_review: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     health_healthz: {
         parameters: {
             query?: never;
@@ -153,6 +1130,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ReadyResponse"];
                 };
+            };
+            /** @description Service not ready */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

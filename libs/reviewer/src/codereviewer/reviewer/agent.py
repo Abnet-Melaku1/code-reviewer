@@ -35,6 +35,7 @@ async def run_review(
     diff_content: str,
     commit_sha: str,
     model_name: str = "gpt-4o",
+    redis_client: object = None,
 ) -> db_models.Review:
     """Execute the full review pipeline.
 
@@ -44,6 +45,16 @@ async def run_review(
     4. Run grounding validation (filtering comments lying outside target diff lines).
     5. Persist comments and citations transactionally.
     """
+    import codereviewer.schemas as schemas
+
+    async def _pub(event: object) -> None:
+        if redis_client:
+            try:
+                # model_dump_json is standard on Pydantic v2
+                await redis_client.publish("codereviewer:events", event.model_dump_json())
+            except Exception:
+                pass
+
     # 1. Parse diff hunks
     hunks = parse_diff_hunks(diff_content)
 
@@ -64,14 +75,48 @@ async def run_review(
     session.add(db_review)
     await session.flush()
 
+    await _pub(
+        schemas.ReviewQueuedEvent(
+            review_id=db_review.id or 0,
+            pull_request_id=pull_request_id,
+        )
+    )
+
+    await _pub(
+        schemas.ReviewProgressEvent(
+            review_id=db_review.id or 0,
+            phase="Parsing diff hunks...",
+            hunks_done=0,
+            hunks_total=len(hunks) if hunks else 1,
+        )
+    )
+
     if not hunks:
         db_review.status = ReviewStatus.completed
         db_review.summary = "No diff hunks parsed. Nothing to review."
+        await _pub(
+            schemas.ReviewCompletedEvent(
+                review_id=db_review.id or 0,
+                summary=db_review.summary,
+                must_fix=0,
+                suggestions=0,
+                nits=0,
+            )
+        )
         return db_review
 
     # 3. Retrieve context & analyze hunks
     raw_comments = []
-    for hunk in hunks:
+    total_hunks = len(hunks)
+    for i, hunk in enumerate(hunks):
+        await _pub(
+            schemas.ReviewProgressEvent(
+                review_id=db_review.id or 0,
+                phase=f"Analyzing diff hunk {i + 1}/{total_hunks} ({hunk.file_path})...",
+                hunks_done=i,
+                hunks_total=total_hunks,
+            )
+        )
         context = await retriever.retrieve_context(repository_id, hunk)
         lang = get_language_from_path(hunk.file_path)
 
@@ -79,6 +124,15 @@ async def run_review(
             if analyzer.applies_to(lang):
                 hunk_comments = await analyzer.analyze(hunk, context)
                 raw_comments.extend(hunk_comments)
+
+    await _pub(
+        schemas.ReviewProgressEvent(
+            review_id=db_review.id or 0,
+            phase="Saving comments and citations...",
+            hunks_done=total_hunks,
+            hunks_total=total_hunks,
+        )
+    )
 
     # 4. Filter comments (grounding/boundary checks)
     valid_comments = validate_review_comments(raw_comments, hunks)
@@ -97,6 +151,13 @@ async def run_review(
         )
         session.add(db_comment)
         await session.flush()
+
+        await _pub(
+            schemas.ReviewCommentEvent(
+                review_id=db_review.id or 0,
+                comment=comment,
+            )
+        )
 
         for citation in comment.citations:
             db_citation = db_models.Citation(
@@ -121,4 +182,16 @@ async def run_review(
         f"Review completed. Identified {db_review.must_fix} critical issues, "
         f"{db_review.suggestions} suggestions, and {db_review.nits} nits."
     )
+
+    await _pub(
+        schemas.ReviewCompletedEvent(
+            review_id=db_review.id or 0,
+            summary=db_review.summary,
+            must_fix=db_review.must_fix,
+            suggestions=db_review.suggestions,
+            nits=db_review.nits,
+        )
+    )
+
     return db_review
+

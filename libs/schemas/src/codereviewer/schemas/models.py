@@ -59,6 +59,7 @@ class Repository(StrippedStrModel):
     the index lifecycle.
     """
 
+    id: int | None = None
     github_installation_id: int = Field(gt=0)
     owner: str = Field(min_length=1)
     name: str = Field(min_length=1)
@@ -116,6 +117,7 @@ class CodeChunk(DomainModel):
 class PullRequest(StrippedStrModel):
     """A pull request under review. Identity fields mirror GitHub's PR payload."""
 
+    id: int | None = None
     number: int = Field(ge=1)
     head_sha: str = Field(min_length=1)
     base_sha: str = Field(min_length=1)
@@ -198,6 +200,7 @@ class ReviewComment(StrippedStrModel):
     the diff in the review pipeline, not here. ``suggested_patch`` is a verbatim diff.
     """
 
+    id: int | None = None
     file_path: str = Field(min_length=1)
     line: int = Field(ge=1)
     side: DiffSide
@@ -222,6 +225,7 @@ class Review(StrippedStrModel):
     in as it progresses; ``model`` records the resolved model ID for audit.
     """
 
+    id: int | None = None
     head_sha: str = Field(min_length=1)
     status: ReviewStatus = ReviewStatus.queued
     summary: str | None = None

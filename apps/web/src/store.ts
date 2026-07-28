@@ -43,91 +43,20 @@ export interface ReviewComment {
   }>;
 }
 
-// Initial mock data
-const INITIAL_REPOS: Repository[] = [
-  {
-    id: 1,
-    owner: "google",
-    name: "guava",
-    default_branch: "master",
-    index_status: "ready",
-    posting_enabled: true,
-  },
-  {
-    id: 2,
-    owner: "django",
-    name: "django",
-    default_branch: "main",
-    index_status: "indexing",
-    posting_enabled: false,
-  },
-  {
-    id: 3,
-    owner: "owner",
-    name: "repo",
-    default_branch: "main",
-    index_status: "pending",
-    posting_enabled: false,
-  },
-];
-
-const INITIAL_CONVENTIONS: Convention[] = [
-  {
-    id: 1,
-    repository_id: 1,
-    name: "Prefer Standard Java Streams",
-    description: "Avoid using loop structures when mapping or filtering collections. Use standard Java streams instead.",
-    severity: "suggestion",
-    confidence: 0.94,
-    is_active: true,
-  },
-  {
-    id: 2,
-    repository_id: 1,
-    name: "Always Use Preconditions",
-    description: "Check method arguments using Guava's Preconditions utility class at the start of public functions.",
-    severity: "must-fix",
-    confidence: 0.98,
-    is_active: true,
-  },
-  {
-    id: 3,
-    repository_id: 1,
-    name: "Use @Nullable for Optional Arguments",
-    description: "Ensure optional method parameters are annotated with javax.annotation.Nullable.",
-    severity: "nit",
-    confidence: 0.85,
-    is_active: true,
-  },
-];
-
-const INITIAL_PRS: PullRequest[] = [
-  {
-    id: 1,
-    repository_id: 1,
-    number: 42,
-    title: "refactor(collections): optimize Multimap implementation",
-    author: "octocat",
-    head_sha: "98da24f",
-    base_sha: "1324ab2",
-    state: "open",
-  },
-];
-
 export const MOCK_DIFF = `diff --git a/guava/src/com/google/common/collect/CustomMultimap.java b/guava/src/com/google/common/collect/CustomMultimap.java
 index 1324ab2..98da24f 100644
 --- a/guava/src/com/google/common/collect/CustomMultimap.java
 +++ b/guava/src/com/google/common/collect/CustomMultimap.java
 @@ -12,6 +12,12 @@ public class CustomMultimap<K, V> extends AbstractMultimap<K, V> {
    private final Map<K, Collection<V>> map;
- 
+
    public CustomMultimap(Map<K, Collection<V>> map) {
 +    if (map == null) {
 +      throw new NullPointerException("map cannot be null");
 +    }
      this.map = map;
    }
- 
+
 @@ -25,4 +31,8 @@ public class CustomMultimap<K, V> extends AbstractMultimap<K, V> {
    public List<V> getValues(K key) {
 -    List<V> list = new ArrayList<>();
@@ -139,95 +68,176 @@ index 1324ab2..98da24f 100644
    }
  }`;
 
-const INITIAL_COMMENTS: ReviewComment[] = [
-  {
-    id: 1,
-    review_id: 1,
-    path: "guava/src/com/google/common/collect/CustomMultimap.java",
-    line: 16,
-    body: "Instead of throwing raw NullPointerException, use `Preconditions.checkNotNull(map)` to align with the codebase's standard practices.",
-    patch: "Preconditions.checkNotNull(map);",
-    severity: "must-fix",
-    citations: [
-      {
-        type: "convention",
-        name: "Always Use Preconditions",
-        description: "Check method arguments using Guava's Preconditions utility class at the start of public functions.",
-      },
-      {
-        type: "chunk",
-        name: "AbstractMultimap.java:L45-50",
-        description: "Guava AbstractMultimap constructor checking params using Preconditions.checkNotNull.",
-      },
-    ],
-  },
-  {
-    id: 2,
-    review_id: 1,
-    path: "guava/src/com/google/common/collect/CustomMultimap.java",
-    line: 35,
-    body: "Make sure `Collectors.toList()` is imported or use full class names. Standard practice is to statically import Collectors helper methods.",
-    patch: "import static java.util.stream.Collectors.toList;",
-    severity: "nit",
-    citations: [
-      {
-        type: "chunk",
-        name: "CollectionUtils.java:L12-15",
-        description: "Static import utility matches in similar collections utility classes.",
-      },
-    ],
-  },
-];
+const API_BASE = "http://localhost:8000/api/v1";
 
-// LocalStorage Helper functions
-export function getSavedRepos(): Repository[] {
-  const data = localStorage.getItem("cr_repos");
-  if (!data) {
-    localStorage.setItem("cr_repos", JSON.stringify(INITIAL_REPOS));
-    return INITIAL_REPOS;
-  }
-  return JSON.parse(data);
+export async function fetchRepos(): Promise<Repository[]> {
+  const res = await fetch(`${API_BASE}/repositories`);
+  if (!res.ok) throw new Error("Failed to fetch repositories");
+  return res.json();
 }
 
-export function saveRepos(repos: Repository[]): void {
-  localStorage.setItem("cr_repos", JSON.stringify(repos));
+export async function createRepo(
+  owner: string,
+  name: string,
+  default_branch: string
+): Promise<Repository> {
+  const res = await fetch(`${API_BASE}/repositories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      github_installation_id: Math.floor(Math.random() * 100000) + 1,
+      owner,
+      name,
+      default_branch,
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to create repository");
+  return res.json();
 }
 
-export function getSavedConventions(): Convention[] {
-  const data = localStorage.getItem("cr_conventions");
-  if (!data) {
-    localStorage.setItem("cr_conventions", JSON.stringify(INITIAL_CONVENTIONS));
-    return INITIAL_CONVENTIONS;
-  }
-  return JSON.parse(data);
+export async function updateRepoPosting(id: number, posting_enabled: boolean): Promise<Repository> {
+  const res = await fetch(`${API_BASE}/repositories/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ posting_enabled }),
+  });
+  if (!res.ok) throw new Error("Failed to update repository settings");
+  return res.json();
 }
 
-export function saveConventions(conventions: Convention[]): void {
-  localStorage.setItem("cr_conventions", JSON.stringify(conventions));
+export async function reindexRepo(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/repositories/${id}/reindex`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Failed to trigger re-index");
 }
 
-export function getSavedPRs(): PullRequest[] {
-  const data = localStorage.getItem("cr_prs");
-  if (!data) {
-    localStorage.setItem("cr_prs", JSON.stringify(INITIAL_PRS));
-    return INITIAL_PRS;
-  }
-  return JSON.parse(data);
+export async function fetchConventions(repoId: number): Promise<Convention[]> {
+  const res = await fetch(`${API_BASE}/repositories/${repoId}/conventions`);
+  if (!res.ok) throw new Error("Failed to fetch conventions");
+  const data = await res.json();
+  return data.map((c: any) => ({
+    id: c.id,
+    repository_id: repoId,
+    name: c.title,
+    description: c.description,
+    severity: "suggestion",
+    confidence: c.confidence,
+    is_active: c.active,
+  }));
 }
 
-export function savePRs(prs: PullRequest[]): void {
-  localStorage.setItem("cr_prs", JSON.stringify(prs));
+export async function createConvention(
+  repoId: number,
+  title: string,
+  description: string
+): Promise<Convention> {
+  const res = await fetch(`${API_BASE}/repositories/${repoId}/conventions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, description }),
+  });
+  if (!res.ok) throw new Error("Failed to create convention");
+  const c = await res.json();
+  return {
+    id: c.id,
+    repository_id: repoId,
+    name: c.title,
+    description: c.description,
+    severity: "suggestion",
+    confidence: c.confidence,
+    is_active: c.active,
+  };
 }
 
-export function getSavedComments(): ReviewComment[] {
-  const data = localStorage.getItem("cr_comments");
-  if (!data) {
-    localStorage.setItem("cr_comments", JSON.stringify(INITIAL_COMMENTS));
-    return INITIAL_COMMENTS;
-  }
-  return JSON.parse(data);
+export async function toggleConventionActive(
+  repoId: number,
+  id: number,
+  active: boolean
+): Promise<Convention> {
+  const res = await fetch(`${API_BASE}/repositories/${repoId}/conventions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ active }),
+  });
+  if (!res.ok) throw new Error("Failed to update convention");
+  const c = await res.json();
+  return {
+    id: c.id,
+    repository_id: repoId,
+    name: c.title,
+    description: c.description,
+    severity: "suggestion",
+    confidence: c.confidence,
+    is_active: c.active,
+  };
 }
 
-export function saveComments(comments: ReviewComment[]): void {
-  localStorage.setItem("cr_comments", JSON.stringify(comments));
+export async function fetchPRs(repoId: number): Promise<PullRequest[]> {
+  const res = await fetch(`${API_BASE}/repositories/${repoId}/pulls`);
+  if (!res.ok) throw new Error("Failed to fetch pulls");
+  const data = await res.json();
+  return data.map((p: any) => ({
+    id: p.id,
+    repository_id: repoId,
+    number: p.number,
+    title: p.title,
+    author: p.author,
+    head_sha: p.head_sha,
+    base_sha: p.base_sha,
+    state: p.state === "open" ? "open" : "closed",
+  }));
+}
+
+export async function fetchReviews(prId: number): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/pulls/${prId}/reviews`);
+  if (!res.ok) throw new Error("Failed to fetch reviews");
+  return res.json();
+}
+
+export async function rerunReview(reviewId: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/reviews/${reviewId}/rerun`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Failed to trigger re-run");
+}
+
+export async function createReview(prId: number): Promise<any> {
+  const res = await fetch(`${API_BASE}/pulls/${prId}/reviews`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Failed to trigger review");
+  return res.json();
+}
+
+
+export async function fetchComments(reviewId: number): Promise<ReviewComment[]> {
+  const res = await fetch(`${API_BASE}/reviews/${reviewId}/comments`);
+  if (!res.ok) throw new Error("Failed to fetch comments");
+  const data = await res.json();
+  return data.map((c: any) => ({
+    id: c.id,
+    review_id: reviewId,
+    path: c.file_path,
+    line: c.line,
+    body: c.body,
+    patch: c.suggested_patch,
+    severity: c.severity === "must_fix" ? "must-fix" : c.severity,
+    citations: (c.citations || []).map((cit: any) => {
+      const type = cit.kind === "code_chunk" ? "chunk" : "convention";
+      let name = "";
+      let description = "";
+      if (cit.kind === "code_chunk") {
+        name = `code chunk #${cit.code_chunk_id}`;
+        description = "Grounded source code reference";
+      } else if (cit.kind === "convention") {
+        name = `convention #${cit.convention_id}`;
+        description = "Learned coding standard";
+      } else {
+        name = cit.diff_ref || "diff hunk";
+        description = "Anchored diff hunk";
+      }
+      return { type, name, description };
+    }),
+  }));
 }

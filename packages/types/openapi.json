@@ -1,6 +1,192 @@
 {
   "components": {
     "schemas": {
+      "Citation": {
+        "additionalProperties": false,
+        "description": "Evidence grounding a review comment.\n\nExactly one target is populated, and it must match ``kind``: ``code_chunk_id`` for a\n``code_chunk``, ``convention_id`` for a ``convention``, ``diff_ref`` for a ``diff_hunk``.\nThe parent ``review_comment_id`` link is a persistence concern; the target reference is\ndomain payload (the UI shows what grounded each comment).",
+        "properties": {
+          "code_chunk_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Chunk Id"
+          },
+          "convention_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Convention Id"
+          },
+          "diff_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Diff Ref"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/CitationKind"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "Citation",
+        "type": "object"
+      },
+      "CitationKind": {
+        "description": "The kind of evidence grounding a review comment.",
+        "enum": [
+          "code_chunk",
+          "convention",
+          "diff_hunk"
+        ],
+        "title": "CitationKind",
+        "type": "string"
+      },
+      "Convention": {
+        "additionalProperties": false,
+        "description": "A learned rule about the codebase, retrieved as grounding during review.\n\n``example_code`` is verbatim source and keeps its whitespace; ``title``/``description``\nare prose and are stripped. ``confidence`` is a 0..1 score; inactive conventions are not\nretrieved (``active`` defaults to True).",
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "confidence": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Confidence",
+            "type": "number"
+          },
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "example_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example Code"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ConventionSource"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "source",
+          "confidence"
+        ],
+        "title": "Convention",
+        "type": "object"
+      },
+      "ConventionCreate": {
+        "additionalProperties": false,
+        "description": "Payload to create a new user-defined convention.",
+        "properties": {
+          "description": {
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "example_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example Code"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "description"
+        ],
+        "title": "ConventionCreate",
+        "type": "object"
+      },
+      "ConventionSource": {
+        "description": "How a learned convention was established.",
+        "enum": [
+          "inferred",
+          "from_review",
+          "user_defined"
+        ],
+        "title": "ConventionSource",
+        "type": "string"
+      },
+      "ConventionUpdate": {
+        "additionalProperties": false,
+        "description": "Payload to toggle a convention's active status.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "active"
+        ],
+        "title": "ConventionUpdate",
+        "type": "object"
+      },
+      "DiffSide": {
+        "description": "Which side of a diff a comment anchors to.",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "DiffSide",
+        "type": "string"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -26,11 +212,87 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "IndexStatus": {
+        "description": "Lifecycle of a repository's index (see the state machine in the data model).",
+        "enum": [
+          "pending",
+          "indexing",
+          "ready",
+          "error"
+        ],
+        "title": "IndexStatus",
+        "type": "string"
+      },
       "Liveness": {
         "enum": [
           "ok"
         ],
         "title": "Liveness",
+        "type": "string"
+      },
+      "PullRequest": {
+        "additionalProperties": false,
+        "description": "A pull request under review. Identity fields mirror GitHub's PR payload.",
+        "properties": {
+          "author": {
+            "minLength": 1,
+            "title": "Author",
+            "type": "string"
+          },
+          "base_sha": {
+            "minLength": 1,
+            "title": "Base Sha",
+            "type": "string"
+          },
+          "head_sha": {
+            "minLength": 1,
+            "title": "Head Sha",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "number": {
+            "minimum": 1.0,
+            "title": "Number",
+            "type": "integer"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PullRequestState",
+            "default": "open"
+          },
+          "title": {
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "head_sha",
+          "base_sha",
+          "title",
+          "author"
+        ],
+        "title": "PullRequest",
+        "type": "object"
+      },
+      "PullRequestState": {
+        "description": "State of a pull request as reported by GitHub.",
+        "enum": [
+          "open",
+          "closed",
+          "merged"
+        ],
+        "title": "PullRequestState",
         "type": "string"
       },
       "Readiness": {
@@ -52,6 +314,328 @@
         ],
         "title": "ReadyResponse",
         "type": "object"
+      },
+      "Repository": {
+        "additionalProperties": false,
+        "description": "A connected GitHub repository and the state of its index.\n\n``posting_enabled`` defaults to False: posting to a PR is a dry run until a repo owner\nopts in (guardrail S2). ``index_status`` starts at ``pending`` \u2014 the initial state of\nthe index lifecycle.",
+        "properties": {
+          "default_branch": {
+            "minLength": 1,
+            "title": "Default Branch",
+            "type": "string"
+          },
+          "github_installation_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Github Installation Id",
+            "type": "integer"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "index_status": {
+            "$ref": "#/components/schemas/IndexStatus",
+            "default": "pending"
+          },
+          "indexed_commit_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indexed Commit Sha"
+          },
+          "last_indexed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Indexed At"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "minLength": 1,
+            "title": "Owner",
+            "type": "string"
+          },
+          "posting_enabled": {
+            "default": false,
+            "title": "Posting Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "github_installation_id",
+          "owner",
+          "name",
+          "default_branch"
+        ],
+        "title": "Repository",
+        "type": "object"
+      },
+      "RepositoryCreate": {
+        "additionalProperties": false,
+        "description": "Payload to register a new GitHub repository.",
+        "properties": {
+          "default_branch": {
+            "default": "main",
+            "minLength": 1,
+            "title": "Default Branch",
+            "type": "string"
+          },
+          "github_installation_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Github Installation Id",
+            "type": "integer"
+          },
+          "name": {
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "owner": {
+            "minLength": 1,
+            "title": "Owner",
+            "type": "string"
+          }
+        },
+        "required": [
+          "github_installation_id",
+          "owner",
+          "name"
+        ],
+        "title": "RepositoryCreate",
+        "type": "object"
+      },
+      "RepositoryUpdate": {
+        "additionalProperties": false,
+        "description": "Payload to update repository settings.",
+        "properties": {
+          "posting_enabled": {
+            "title": "Posting Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "posting_enabled"
+        ],
+        "title": "RepositoryUpdate",
+        "type": "object"
+      },
+      "Review": {
+        "additionalProperties": false,
+        "description": "One review run on a pull request.\n\n``(pull_request_id, head_sha)`` is the idempotency key (the FK is a persistence concern).\nCounts and cost/latency metrics default to zero for a freshly queued run and are filled\nin as it progresses; ``model`` records the resolved model ID for audit.",
+        "properties": {
+          "cost_cents": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Cost Cents",
+            "type": "integer"
+          },
+          "head_sha": {
+            "minLength": 1,
+            "title": "Head Sha",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "latency_ms": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "model": {
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "must_fix": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Must Fix",
+            "type": "integer"
+          },
+          "nits": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Nits",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReviewStatus",
+            "default": "queued"
+          },
+          "suggestions": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Suggestions",
+            "type": "integer"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "tokens_in": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Tokens In",
+            "type": "integer"
+          },
+          "tokens_out": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Tokens Out",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "head_sha",
+          "model"
+        ],
+        "title": "Review",
+        "type": "object"
+      },
+      "ReviewComment": {
+        "additionalProperties": false,
+        "description": "One margin note. Carries at least one citation \u2014 a comment with no grounding is a bug.\n\nIts ``(file_path, line, side)`` must exist in the actual diff; that is validated against\nthe diff in the review pipeline, not here. ``suggested_patch`` is a verbatim diff.",
+        "properties": {
+          "body": {
+            "minLength": 1,
+            "title": "Body",
+            "type": "string"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "minItems": 1,
+            "title": "Citations",
+            "type": "array"
+          },
+          "file_path": {
+            "minLength": 1,
+            "title": "File Path",
+            "type": "string"
+          },
+          "github_comment_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Github Comment Id"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "line": {
+            "minimum": 1.0,
+            "title": "Line",
+            "type": "integer"
+          },
+          "posted_to_github": {
+            "default": false,
+            "title": "Posted To Github",
+            "type": "boolean"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "side": {
+            "$ref": "#/components/schemas/DiffSide"
+          },
+          "suggested_patch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Patch"
+          }
+        },
+        "required": [
+          "file_path",
+          "line",
+          "side",
+          "severity",
+          "body",
+          "citations"
+        ],
+        "title": "ReviewComment",
+        "type": "object"
+      },
+      "ReviewStatus": {
+        "description": "Lifecycle of a single review run (see the state machine in the data model).",
+        "enum": [
+          "queued",
+          "running",
+          "completed",
+          "failed"
+        ],
+        "title": "ReviewStatus",
+        "type": "string"
+      },
+      "Severity": {
+        "description": "Severity of a review comment, listed most to least urgent.",
+        "enum": [
+          "must_fix",
+          "suggestion",
+          "nit",
+          "context"
+        ],
+        "title": "Severity",
+        "type": "string"
       },
       "ValidationError": {
         "properties": {
@@ -101,6 +685,699 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/pulls/{id}/reviews": {
+      "get": {
+        "description": "List all review runs for a pull request.",
+        "operationId": "reviews_list_reviews",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Review"
+                  },
+                  "title": "Response Reviews List Reviews",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Reviews",
+        "tags": [
+          "reviews"
+        ]
+      },
+      "post": {
+        "description": "Trigger a new code review run for a pull request.",
+        "operationId": "reviews_create_review",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Review",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/repositories": {
+      "get": {
+        "description": "List all registered repositories in the system.",
+        "operationId": "repositories_list_repositories",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Repository"
+                  },
+                  "title": "Response Repositories List Repositories",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Repositories",
+        "tags": [
+          "repositories"
+        ]
+      },
+      "post": {
+        "description": "Manually register a new repository to connect and begin indexing.",
+        "operationId": "repositories_create_repository",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Repository"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Repository",
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/repositories/{id}": {
+      "get": {
+        "description": "Get detailed status of a specific repository.",
+        "operationId": "repositories_get_repository",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Repository"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Repository",
+        "tags": [
+          "repositories"
+        ]
+      },
+      "patch": {
+        "description": "Update settings for a repository, notably toggling comment posting.",
+        "operationId": "repositories_update_repository",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Repository"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Repository",
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/repositories/{id}/conventions": {
+      "get": {
+        "description": "List learned and user-defined coding conventions for a repository.",
+        "operationId": "repositories_list_conventions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Convention"
+                  },
+                  "title": "Response Repositories List Conventions",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Conventions",
+        "tags": [
+          "repositories"
+        ]
+      },
+      "post": {
+        "description": "Manually add a user-defined convention for the review pipeline to evaluate against.",
+        "operationId": "repositories_create_convention",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConventionCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Convention"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Convention",
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/repositories/{id}/conventions/{cid}": {
+      "patch": {
+        "description": "Enable or disable a specific codebase convention.",
+        "operationId": "repositories_update_convention",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "cid",
+            "required": true,
+            "schema": {
+              "title": "Cid",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConventionUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Convention"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Convention",
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/repositories/{id}/pulls": {
+      "get": {
+        "description": "List all pull requests registered for a specific repository.",
+        "operationId": "reviews_list_pulls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PullRequest"
+                  },
+                  "title": "Response Reviews List Pulls",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Pulls",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/repositories/{id}/reindex": {
+      "post": {
+        "description": "Request a full repository re-index by enqueuing a worker job.",
+        "operationId": "repositories_reindex_repository",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Repositories Reindex Repository",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reindex Repository",
+        "tags": [
+          "repositories"
+        ]
+      }
+    },
+    "/api/v1/reviews/{id}": {
+      "get": {
+        "description": "Get the status and summary metrics of a specific review run.",
+        "operationId": "reviews_get_review",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Review"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Review",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/reviews/{id}/comments": {
+      "get": {
+        "description": "Get all inline review comments produced by a specific review run.",
+        "operationId": "reviews_get_review_comments",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewComment"
+                  },
+                  "title": "Response Reviews Get Review Comments",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Review Comments",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/reviews/{id}/post": {
+      "post": {
+        "description": "Publish a review's inline comments directly to the GitHub PR.\n\nEnforces S2: raises HTTP 403 Forbidden if posting_enabled is False.",
+        "operationId": "reviews_post_review_to_github",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "title": "Response Reviews Post Review To Github",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Review To Github",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/v1/reviews/{id}/rerun": {
+      "post": {
+        "description": "Manually trigger a re-run of a specific review, idempotent per (pr, head_sha).",
+        "operationId": "reviews_rerun_review",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Reviews Rerun Review",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rerun Review",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
     "/healthz": {
       "get": {
         "description": "Liveness: the process is up. Used by the orchestrator to decide restarts.",
@@ -125,7 +1402,7 @@
     },
     "/readyz": {
       "get": {
-        "description": "Readiness: the service can serve traffic.\n\nTrivially ready for now; it will check dependencies (database, Redis) once they are\nwired, and report ``not_ready`` so the orchestrator holds traffic until they are up.",
+        "description": "Readiness: check database and Redis connection status.",
         "operationId": "health_readyz",
         "responses": {
           "200": {
@@ -137,6 +1414,9 @@
               }
             },
             "description": "Successful Response"
+          },
+          "503": {
+            "description": "Service not ready"
           }
         },
         "summary": "Readyz",

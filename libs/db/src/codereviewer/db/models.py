@@ -80,6 +80,20 @@ class Repository(IntPk, TimestampMixin, Base):
     # server_default keeps the S2 dry-run guardrail safe even for non-ORM inserts/backfills.
     posting_enabled: Mapped[bool] = mapped_column(default=False, server_default=false())
 
+    def to_schema(self) -> schemas.Repository:
+        """Map ORM entity to codereviewer.schemas.Repository domain model."""
+        return schemas.Repository(
+            id=self.id,
+            github_installation_id=self.github_installation_id,
+            owner=self.owner,
+            name=self.name,
+            default_branch=self.default_branch,
+            index_status=self.index_status,
+            indexed_commit_sha=self.indexed_commit_sha,
+            last_indexed_at=self.last_indexed_at,
+            posting_enabled=self.posting_enabled,
+        )
+
 
 class IndexedFile(IntPk, TimestampMixin, Base):
     """A file currently represented in the index. Mirrors codereviewer.schemas.IndexedFile."""
@@ -150,6 +164,18 @@ class Convention(IntPk, TimestampMixin, Base):
     confidence: Mapped[float] = mapped_column(Float)
     active: Mapped[bool] = mapped_column(default=True, server_default=true())
 
+    def to_schema(self) -> schemas.Convention:
+        """Map ORM entity to codereviewer.schemas.Convention domain model."""
+        return schemas.Convention(
+            id=self.id,
+            title=self.title,
+            description=self.description,
+            example_code=self.example_code,
+            source=self.source,
+            confidence=self.confidence,
+            active=self.active,
+        )
+
 
 class PullRequest(IntPk, TimestampMixin, Base):
     """A pull request under review. Mirrors codereviewer.schemas.PullRequest."""
@@ -171,6 +197,18 @@ class PullRequest(IntPk, TimestampMixin, Base):
     state: Mapped[PullRequestState] = mapped_column(
         _str_enum(PullRequestState), default=PullRequestState.open, server_default=text("'open'")
     )
+
+    def to_schema(self) -> schemas.PullRequest:
+        """Map ORM entity to codereviewer.schemas.PullRequest domain model."""
+        return schemas.PullRequest(
+            id=self.id,
+            number=self.number,
+            head_sha=self.head_sha,
+            base_sha=self.base_sha,
+            title=self.title,
+            author=self.author,
+            state=self.state,
+        )
 
 
 class Review(IntPk, TimestampMixin, Base):
@@ -210,6 +248,7 @@ class Review(IntPk, TimestampMixin, Base):
     def to_schema(self) -> schemas.Review:
         """Map ORM entity to codereviewer.schemas.Review domain model."""
         return schemas.Review(
+            id=self.id,
             head_sha=self.head_sha,
             status=self.status,
             summary=self.summary,
@@ -259,6 +298,7 @@ class ReviewComment(IntPk, TimestampMixin, Base):
             if mapped is not None:
                 schema_citations.append(mapped)
         return schemas.ReviewComment(
+            id=self.id,
             file_path=self.file_path,
             line=self.line,
             side=self.side,

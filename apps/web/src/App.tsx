@@ -5,13 +5,16 @@ import {
   type PullRequest,
   type ReviewComment,
   MOCK_DIFF,
-  getSavedRepos,
-  saveRepos,
-  getSavedConventions,
-  saveConventions,
-  getSavedPRs,
-  savePRs,
-  getSavedComments,
+  fetchRepos,
+  createRepo,
+  updateRepoPosting,
+  fetchConventions,
+  toggleConventionActive,
+  fetchPRs,
+  fetchReviews,
+  rerunReview,
+  createReview,
+  fetchComments,
 } from "./store";
 
 export default function App(): React.ReactElement {
@@ -24,7 +27,7 @@ export default function App(): React.ReactElement {
   // Selection States
   const [activeRepoId, setActiveRepoId] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<"conventions" | "prs" | "settings">("prs");
-  const [selectedPrId, setSelectedPrId] = useState<number | null>(1);
+  const [selectedPrId, setSelectedPrId] = useState<number | null>(null);
 
   // Form States
   const [newRepoOwner, setNewRepoOwner] = useState("");
@@ -33,19 +36,145 @@ export default function App(): React.ReactElement {
 
   // WebSocket Live simulation states
   const [wsLogs, setWsLogs] = useState<Array<{ type: "info" | "success" | "error"; text: string }>>([
-    { type: "info", text: "[WS] Connected to WebSocket endpoint wss://api.codereviewer.ai/ws" },
-    { type: "info", text: "[WS] Idle. Waiting for repository events..." },
+    { type: "info", text: "[WS] Initializing WebSocket gateway subscriber..." },
   ]);
   const [isReviewing, setIsReviewing] = useState(false);
   const consoleEndRef = useRef<HTMLDivElement>(null);
 
-  // Load Saved Data
+  // Load Initial Repositories
   useEffect(() => {
-    setRepos(getSavedRepos());
-    setConventions(getSavedConventions());
-    setPrs(getSavedPRs());
-    setComments(getSavedComments());
+    fetchRepos()
+      .then((data) => {
+        setRepos(data);
+        if (data.length > 0) {
+          setActiveRepoId(data[0].id);
+        }
+      })
+      .catch((err) => console.error("Error loading repositories:", err));
   }, []);
+
+  // Fetch conventions and PRs when activeRepoId changes
+  useEffect(() => {
+    if (!activeRepoId) return;
+
+    fetchConventions(activeRepoId)
+      .then(setConventions)
+      .catch((err) => console.error("Error loading conventions:", err));
+
+    fetchPRs(activeRepoId)
+      .then((data) => {
+        setPrs(data);
+        if (data.length > 0) {
+          setSelectedPrId(data[0].id);
+        } else {
+          setSelectedPrId(null);
+          setComments([]);
+        }
+      })
+      .catch((err) => console.error("Error loading PRs:", err));
+  }, [activeRepoId]);
+
+  // Fetch comments for the selected PR review run
+  const reloadPrComments = () => {
+    if (!selectedPrId) {
+      setComments([]);
+      return;
+    }
+    fetchReviews(selectedPrId)
+      .then(async (reviews) => {
+        if (reviews.length > 0) {
+          const latest = reviews[reviews.length - 1];
+          try {
+            const commentsData = await fetchComments(latest.id);
+            setComments(commentsData);
+          } catch (err) {
+            console.error("Error loading comments:", err);
+          }
+        } else {
+          setComments([]);
+        }
+      })
+      .catch((err) => console.error("Error loading reviews:", err));
+  };
+
+  useEffect(() => {
+    reloadPrComments();
+  }, [selectedPrId]);
+
+  // Connect to the real WebSocket progress gateway
+  useEffect(() => {
+    const ws = new WebSocket("ws://localhost:8000/ws");
+
+    ws.onopen = () => {
+      setWsLogs((prev) => [
+        ...prev,
+        { type: "success", text: "[WS] Connected to live backend WebSocket progress gateway" },
+      ]);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log("WebSocket event:", data);
+
+        if (data.type === "index.status") {
+          // Refresh repositories list to update index_status in UI
+          fetchRepos().then(setRepos).catch(console.error);
+          setWsLogs((prev) => [
+            ...prev,
+            { type: "info", text: `[WS] Repository #${data.repository_id} status: ${data.index_status.toUpperCase()}` },
+          ]);
+        } else if (data.type === "index.progress") {
+          setWsLogs((prev) => [
+            ...prev,
+            { type: "info", text: `[WS] [Index Repo #${data.repository_id}] ${data.phase} (${data.files_done}/${data.files_total} files)` },
+          ]);
+        } else if (data.type === "review.queued") {
+          setIsReviewing(true);
+          setWsLogs((prev) => [
+            ...prev,
+            { type: "info", text: `[WS] Review queued: run #${data.review_id} for PR #${data.pull_request_id}` },
+          ]);
+        } else if (data.type === "review.progress") {
+          setWsLogs((prev) => [
+            ...prev,
+            { type: "info", text: `[WS] [Review Run] ${data.phase}` },
+          ]);
+        } else if (data.type === "review.comment") {
+          setWsLogs((prev) => [
+            ...prev,
+            { type: "success", text: `[WS] Review Comment generated for ${data.comment.file_path}:${data.comment.line}` },
+          ]);
+        } else if (data.type === "review.completed") {
+          setIsReviewing(false);
+          setWsLogs((prev) => [
+            ...prev,
+            { type: "success", text: `[WS] Review run completed! Summary: ${data.summary}` },
+          ]);
+          reloadPrComments();
+        } else if (data.type === "review.failed") {
+          setIsReviewing(false);
+          setWsLogs((prev) => [
+            ...prev,
+            { type: "error", text: `[WS] Review failed: ${data.error}` },
+          ]);
+        }
+      } catch (err) {
+        console.error("Error processing WebSocket message:", err);
+      }
+    };
+
+    ws.onclose = () => {
+      setWsLogs((prev) => [
+        ...prev,
+        { type: "error", text: "[WS] Disconnected from backend WebSocket gateway" },
+      ]);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [selectedPrId]);
 
   // Sync scroll on WS logs
   useEffect(() => {
@@ -61,127 +190,78 @@ export default function App(): React.ReactElement {
   const selectedPr = prs.find((p) => p.id === selectedPrId);
 
   // Add Repository Handler
-  const handleAddRepo = (e: React.FormEvent) => {
+  const handleAddRepo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRepoOwner || !newRepoName) return;
 
-    const newRepo: Repository = {
-      id: Date.now(),
-      owner: newRepoOwner,
-      name: newRepoName,
-      default_branch: newRepoBranch,
-      index_status: "pending",
-      posting_enabled: false,
-    };
+    try {
+      const newRepo = await createRepo(newRepoOwner, newRepoName, newRepoBranch);
+      setRepos((prev) => [...prev, newRepo]);
+      setActiveRepoId(newRepo.id);
 
-    const updated = [...repos, newRepo];
-    setRepos(updated);
-    saveRepos(updated);
-
-    // Add some default mocked conventions for the new repo
-    const newConventions: Convention[] = [
-      {
-        id: Date.now() + 1,
-        repository_id: newRepo.id,
-        name: "Standard Header Requirement",
-        description: "Ensure all source files contain the standard license header.",
-        severity: "must-fix",
-        confidence: 0.99,
-        is_active: true,
-      },
-      {
-        id: Date.now() + 2,
-        repository_id: newRepo.id,
-        name: "Clean Log Messages",
-        description: "Do not print debug statement passwords, tokens, or personal identifiers in logger output.",
-        severity: "must-fix",
-        confidence: 0.95,
-        is_active: true,
-      },
-    ];
-    const updatedConvs = [...conventions, ...newConventions];
-    setConventions(updatedConvs);
-    saveConventions(updatedConvs);
-
-    // Add default mock PR
-    const newPR: PullRequest = {
-      id: Date.now() + 3,
-      repository_id: newRepo.id,
-      number: 1,
-      title: "initial: setup basic template structure",
-      author: "developer",
-      head_sha: "head_sha_abc",
-      base_sha: "base_sha_123",
-      state: "open",
-    };
-    const updatedPRs = [...prs, newPR];
-    setPrs(updatedPRs);
-    savePRs(updatedPRs);
-
-    // Reset Form
-    setNewRepoOwner("");
-    setNewRepoName("");
-    setNewRepoBranch("main");
-    setActiveRepoId(newRepo.id);
-    setSelectedPrId(newPR.id);
+      // Reset Form
+      setNewRepoOwner("");
+      setNewRepoName("");
+      setNewRepoBranch("main");
+    } catch (err) {
+      console.error("Failed to add repository:", err);
+    }
   };
 
   // Toggle Convention Active State
-  const toggleConvention = (id: number) => {
-    const updated = conventions.map((c) =>
-      c.id === id ? { ...c, is_active: !c.is_active } : c
-    );
-    setConventions(updated);
-    saveConventions(updated);
+  const toggleConvention = async (id: number) => {
+    const conv = conventions.find((c) => c.id === id);
+    if (!conv) return;
+    try {
+      const updated = await toggleConventionActive(activeRepoId, id, !conv.is_active);
+      setConventions((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    } catch (err) {
+      console.error("Failed to toggle convention:", err);
+    }
   };
 
   // Toggle Posting Enabled
-  const togglePostingEnabled = (id: number) => {
-    const updated = repos.map((r) =>
-      r.id === id ? { ...r, posting_enabled: !r.posting_enabled } : r
-    );
-    setRepos(updated);
-    saveRepos(updated);
+  const togglePostingEnabled = async (id: number) => {
+    const repo = repos.find((r) => r.id === id);
+    if (!repo) return;
+    try {
+      const updated = await updateRepoPosting(id, !repo.posting_enabled);
+      setRepos((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    } catch (err) {
+      console.error("Failed to toggle posting enabled:", err);
+    }
   };
 
-  // Trigger simulated code review run
-  const triggerCodeReview = () => {
-    if (!selectedPr || isReviewing) return;
+  // Trigger code review run using backend API
+  const triggerCodeReview = async () => {
+    if (!selectedPrId || isReviewing) return;
 
     setIsReviewing(true);
-    setWsLogs([
-      { type: "info", text: `[WS] Connected to WebSocket endpoint wss://api.codereviewer.ai/ws` },
-      { type: "info", text: `[WS] Initializing review agent run for PR #${selectedPr.number}...` },
+    setWsLogs((prev) => [
+      ...prev,
+      { type: "info", text: `[WS] Enqueuing review task for PR #${selectedPr?.number}...` },
     ]);
 
-    const steps = [
-      { text: `[WS] Pulling repository ${activeRepo.owner}/${activeRepo.name} base commit ${selectedPr.base_sha}...`, delay: 1200, type: "info" as const },
-      { text: `[WS] Computing local git diff base...head (three-dot comparison)...`, delay: 2200, type: "info" as const },
-      { text: `[WS] Parsed 1 files and 2 hunks from git diff.`, delay: 3500, type: "info" as const },
-      { text: `[WS] Running pgvector search (Cosine Distance) to fetch similar CodeChunks...`, delay: 4800, type: "info" as const },
-      { text: `[WS] Retrieved 3 nearest vector chunks matching code context.`, delay: 5800, type: "info" as const },
-      { text: `[WS] Grounding agent against ${activeRepoConventions.filter(c => c.is_active).length} active conventions...`, delay: 7000, type: "info" as const },
-      { text: `[WS] Invoking LLM StyleAnalyzer using model configuration: gpt-4o...`, delay: 8500, type: "info" as const },
-      { text: `[WS] Review agent completed run. 2 suggestions generated.`, delay: 10500, type: "success" as const },
-      {
-        text: activeRepo.posting_enabled
-          ? `[WS] Posting 2 review comments back to GitHub API (POST /repos/${activeRepo.owner}/${activeRepo.name}/pulls/${selectedPr.number}/comments)...`
-          : `[WS] Posting disabled. Gated comments in DB storage.`,
-        delay: 12000,
-        type: "info" as const,
-      },
-      { text: `[WS] Success! review completed.`, delay: 13500, type: "success" as const },
-    ];
-
-    steps.forEach((step) => {
-      setTimeout(() => {
-        setWsLogs((prev) => [...prev, { type: step.type, text: step.text }]);
-        if (step.text.includes("Success! review completed")) {
-          setIsReviewing(false);
-        }
-      }, step.delay);
-    });
+    try {
+      // Find reviews for this PR
+      const reviews = await fetchReviews(selectedPrId);
+      if (reviews.length > 0) {
+        // Rerun the latest review
+        const latestReview = reviews[reviews.length - 1];
+        await rerunReview(latestReview.id);
+      } else {
+        // Create first review
+        await createReview(selectedPrId);
+      }
+    } catch (err: any) {
+      setIsReviewing(false);
+      setWsLogs((prev) => [
+        ...prev,
+        { type: "error", text: `[WS] Failed to trigger code review: ${err.message}` },
+      ]);
+    }
   };
+
 
   // Render Diff Line Table
   const renderDiffLines = () => {
