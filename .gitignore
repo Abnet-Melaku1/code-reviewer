@@ -19,3 +19,7 @@ node_modules/
 
 # Next.js
 .next/
+
+# Agent Customizations & Docs
+.claude/
+docs/
