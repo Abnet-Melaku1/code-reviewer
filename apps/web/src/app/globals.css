@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CodeReviewer.ai - Manuscript Theme Stylesheet */
+
+body {
+  background-color: #fdf9f1;
+  color: #211D17;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+.marginalia-link {
+  position: relative;
+}
+
+.marginalia-link::after {
+  content: '';
+  position: absolute;
+  left: -1rem;
+  top: 50%;
+  width: 0.5rem;
+  height: 1px;
+  background-color: #E7DFD1;
+}
+
+.manuscript-shadow {
+  box-shadow: 0 10px 30px -15px rgba(21, 69, 55, 0.08);
+}
+
+/* Scrollbars */
+.custom-scrollbar::-webkit-scrollbar,
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track,
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb {
+  background: #E7DFD1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:hover {
+  background: #938A7B;
+}
+
+.rule-input::placeholder {
+  font-style: italic;
+  color: #938A7B;
+  opacity: 0.6;
+}
+
+.marginalia-connector {
+  position: absolute;
+  left: -20px;
+  top: 14px;
+  width: 16px;
+  height: 1px;
+  background-color: #E7DFD1;
+}
+
+/* Syntax Highlighting for Diff Code */
+.syntax-keyword { color: #8A5C4F; font-weight: 500; }
+.syntax-string { color: #5E8A6E; }
+.syntax-comment { color: #938A7B; font-style: italic; }
+.syntax-function { color: #4E6685; }
+.syntax-diff-add { background-color: #E7F3EE; }
+.syntax-diff-remove { background-color: #F9ECE9; text-decoration: line-through; color: #B05640; }
+
+/* Custom toggle switch slider */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(21, 69, 55, 0.1);
+  transition: .3s;
+  border-radius: 34px;
+  border: 1px solid #E7DFD1;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 12px;
+  width: 12px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #154537;
+}
+
+input:checked + .slider:before {
+  transform: translateX(16px);
+}
+
+/* Keyframes for logs sliding animation */
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.2s ease-out forwards;
+}
+
+/* Tooltip Styling for citations */
+.citation-chip {
+  position: relative;
+}
+
+.citation-tooltip {
+  visibility: hidden;
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #211D17;
+  color: #F8F4EC;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: var(--font-label-md);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: normal;
+  width: 220px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.citation-chip:hover .citation-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
