@@ -43,6 +43,21 @@ export interface ReviewComment {
   }>;
 }
 
+export interface Review {
+  id: number;
+  pull_request_id: number;
+  status: "queued" | "running" | "completed" | "failed";
+  summary: string;
+  must_fix: number;
+  suggestions: number;
+  nits: number;
+  tokens_prompt?: number;
+  tokens_completion?: number;
+  cost_cents?: number;
+  latency_ms?: number;
+  model: string;
+}
+
 export const MOCK_DIFF = `diff --git a/guava/src/com/google/common/collect/CustomMultimap.java b/guava/src/com/google/common/collect/CustomMultimap.java
 index 1324ab2..98da24f 100644
 --- a/guava/src/com/google/common/collect/CustomMultimap.java
@@ -189,7 +204,7 @@ export async function fetchPRs(repoId: number): Promise<PullRequest[]> {
   }));
 }
 
-export async function fetchReviews(prId: number): Promise<any[]> {
+export async function fetchReviews(prId: number): Promise<Review[]> {
   const res = await fetch(`${API_BASE}/pulls/${prId}/reviews`);
   if (!res.ok) throw new Error("Failed to fetch reviews");
   return res.json();
@@ -202,7 +217,7 @@ export async function rerunReview(reviewId: number): Promise<void> {
   if (!res.ok) throw new Error("Failed to trigger re-run");
 }
 
-export async function createReview(prId: number): Promise<any> {
+export async function createReview(prId: number): Promise<Review> {
   const res = await fetch(`${API_BASE}/pulls/${prId}/reviews`, {
     method: "POST",
   });
